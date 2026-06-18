@@ -1,39 +1,105 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Send, Terminal, Bot, User } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useImperativeHandle } from 'react';
+import { Send, Bot, User, Copy, Check, Sparkles, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import WelcomeScreen from './WelcomeScreen';
 
-export default function ChatArea() {
-  const [input, setInput] = useState('');
-  const [messages, setMessages] = useState([]);
+// ─── Utility: copy to clipboard ─────────────────────────────────────────────
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+  return (
+    <button
+      onClick={copy}
+      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg
+                 text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+      title="Copy message"
+    >
+      {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+    </button>
+  );
+}
+
+// ─── Typing indicator dots ───────────────────────────────────────────────────
+function TypingDots() {
+  return (
+    <div className="flex items-center gap-1.5 px-1 py-0.5">
+      {[0, 150, 300].map((delay, i) => (
+        <span
+          key={i}
+          className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce"
+          style={{ animationDelay: `${delay}ms`, animationDuration: '1s' }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── ChatArea (main component) ───────────────────────────────────────────────
+function ChatArea({ sendRef }) {
+  const [input, setInput]           = useState('');
+  const [messages, setMessages]     = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const messagesEndRef = useRef(null);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
+  const messagesEndRef   = useRef(null);
+  const scrollAreaRef    = useRef(null);
+  const textareaRef      = useRef(null);
+
+  // ── Load history on mount ─────────────────────────────────────────────────
   useEffect(() => {
     fetch('/api/history')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data.messages) {
-          setMessages(data.messages);
-        }
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
       })
-      .catch((err) => console.error("Failed to load history:", err));
+      .then((d) => { if (d?.messages) setMessages(d.messages); })
+      .catch((e) => console.warn('History load skipped:', e.message));
+  }, []);
+
+  // ── Auto-scroll ────────────────────────────────────────────────────────────
+  const scrollToBottom = useCallback((behavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isGenerating]);
+    if (!showScrollBtn) scrollToBottom();
+  }, [messages, showScrollBtn, scrollToBottom]);
 
-  const handleSend = async () => {
-    const query = input.trim();
+  const handleScroll = () => {
+    const el = scrollAreaRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBtn(distFromBottom > 200);
+  };
+
+  // ── Auto-resize textarea ───────────────────────────────────────────────────
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 180) + 'px';
+  }, [input]);
+
+  // ── Core send function (also exposed via ref for sidebar quick-prompts) ────
+  const sendMessage = useCallback(async (queryOverride) => {
+    const query = (queryOverride ?? input).trim();
     if (!query || isGenerating) return;
 
     setInput('');
-    const userMessage = { role: 'user', content: query };
-    setMessages((prev) => [...prev, userMessage]);
-    
-    // Add empty agent message to update stream
-    setMessages((prev) => [...prev, { role: 'agent', content: '' }]);
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user',  content: query },
+      { role: 'agent', content: '' },
+    ]);
     setIsGenerating(true);
+    setShowScrollBtn(false);
+    scrollToBottom('auto');
 
     try {
       const response = await fetch('/api/chat', {
@@ -42,187 +108,229 @@ export default function ChatArea() {
         body: JSON.stringify({ query }),
       });
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let done = false;
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
-        if (value) {
-          const chunkString = decoder.decode(value, { stream: true });
-          const lines = chunkString.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const dataStr = line.replace('data: ', '').trim();
-              if (!dataStr) continue;
-              
-              try {
-                const data = JSON.parse(dataStr);
-                if (data.chunk) {
-                  setMessages((prev) => {
-                    const newMessages = [...prev];
-                    const lastIdx = newMessages.length - 1;
-                    newMessages[lastIdx] = {
-                      ...newMessages[lastIdx],
-                      content: newMessages[lastIdx].content + data.chunk
-                    };
-                    return newMessages;
-                  });
-                }
-                if (data.done) {
-                  setIsGenerating(false);
-                }
-                if (data.error) {
-                  setMessages((prev) => {
-                    const newMessages = [...prev];
-                    newMessages[newMessages.length - 1].content += `\n\n**Error:** ${data.error}`;
-                    return newMessages;
-                  });
-                  setIsGenerating(false);
-                }
-              } catch (e) {
-                console.error("Error parsing JSON:", e, dataStr);
-              }
+      const reader  = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let   buffer  = '';
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? ''; // keep incomplete last line
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (!raw) continue;
+
+          try {
+            const data = JSON.parse(raw);
+
+            if (data.chunk !== undefined) {
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                updated[updated.length - 1] = { ...last, content: last.content + data.chunk };
+                return updated;
+              });
             }
+            if (data.done) {
+              setIsGenerating(false);
+            }
+            if (data.error) {
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last    = updated[updated.length - 1];
+                updated[updated.length - 1] = {
+                  ...last,
+                  content: last.content + `\n\n> ⚠️ **Error:** ${data.error}`,
+                };
+                return updated;
+              });
+              setIsGenerating(false);
+            }
+          } catch (parseErr) {
+            console.warn('SSE parse error:', parseErr, raw);
           }
         }
       }
     } catch (err) {
-      console.error(err);
+      console.error('Chat request failed:', err);
+      setMessages((prev) => {
+        const updated = [...prev];
+        updated[updated.length - 1] = {
+          ...updated[updated.length - 1],
+          content: `> ⚠️ **Connection error:** ${err.message}\n\nMake sure the backend is running on \`http://127.0.0.1:8000\`.`,
+        };
+        return updated;
+      });
       setIsGenerating(false);
     }
-  };
+  }, [input, isGenerating, scrollToBottom]);
+
+  // Expose sendMessage to App via ref (for sidebar quick-prompts)
+  useImperativeHandle(sendRef, () => sendMessage, [sendMessage]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      sendMessage();
     }
   };
 
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-900/10 via-background to-background">
-      
-      {/* Messages / Welcome Screen */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6">
+    <div className="flex flex-col h-full cyber-grid">
+      {/* ── Messages list ───────────────────────────────────────────────── */}
+      <div
+        id="welcome-scroll-container"
+        ref={scrollAreaRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-6 relative"
+      >
+        <div className="shrink-0 h-[100px] w-full" />
         {messages.length === 0 ? (
-          <div className="max-w-4xl mx-auto h-full flex flex-col justify-center animate-fade-in">
-            <div className="text-center mb-12">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/5 border border-white/10 shadow-2xl mb-6 relative group cursor-pointer">
-                <div className="absolute inset-0 bg-indigo-500/20 blur-xl group-hover:bg-indigo-500/30 transition-colors rounded-2xl"></div>
-                <Terminal size={32} className="text-indigo-400 relative z-10" />
-              </div>
-              <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-zinc-100 to-zinc-400 mb-4 tracking-tight">
-                What is happening on your server?
-              </h2>
-              <p className="text-zinc-400 max-w-xl mx-auto text-sm leading-relaxed">
-                Describe an alert, paste a safe log excerpt, or ask for a troubleshooting procedure. The agent searches your internal runbooks before responding.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto w-full">
-              {[
-                { num: '01', title: 'Diagnose an incident', desc: 'Build an evidence-first checklist', prompt: "Analyze this incident: my Linux server is running out of memory." },
-                { num: '02', title: 'Run a health check', desc: 'Review CPU, memory, disk and services', prompt: "Give me a safe health-check checklist for a production Linux server." },
-                { num: '03', title: 'Inspect service failures', desc: 'Use systemd and journal evidence', prompt: "Explain how to inspect recent systemd service failures." },
-              ].map((card, i) => (
-                <button 
-                  key={i} 
-                  onClick={() => setInput(card.prompt)}
-                  className="glass-card p-5 text-left group transition-transform hover:scale-[1.02]"
-                >
-                  <span className="text-xs font-mono text-indigo-400/80 mb-3 block">{card.num}</span>
-                  <strong className="block text-sm text-zinc-200 font-medium mb-1 group-hover:text-white transition-colors">{card.title}</strong>
-                  <small className="text-xs text-zinc-500">{card.desc}</small>
-                </button>
-              ))}
-            </div>
-          </div>
+          <WelcomeScreen onSelect={(p) => sendMessage(p)} scrollContainer={scrollAreaRef} />
         ) : (
-          <div className="max-w-4xl mx-auto w-full space-y-6 pb-6">
-            {messages.map((msg, idx) => (
-              <div key={idx} className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`flex gap-4 max-w-[85%] sm:max-w-[75%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                  
-                  {/* Avatar */}
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                    msg.role === 'user' 
-                      ? 'bg-zinc-800 text-zinc-300' 
-                      : 'bg-indigo-600 shadow-lg shadow-indigo-500/20 text-white'
-                  }`}>
-                    {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
-                  </div>
+          <div className="max-w-3xl mx-auto w-full space-y-6 pb-4 animate-fade-in">
+            {messages.map((msg, idx) => {
+              const isLast   = idx === messages.length - 1;
+              const isStream = isGenerating && isLast && msg.role === 'agent';
 
-                  {/* Message Bubble */}
-                  <div className={`p-4 rounded-2xl text-sm leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-zinc-800 text-zinc-100 rounded-tr-none'
-                      : 'glass-card border-white/5 rounded-tl-none prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:border prose-pre:border-white/10'
-                  }`}>
-                    {msg.role === 'user' ? (
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
+              return (
+                <div
+                  key={idx}
+                  className={`flex w-full gap-3 animate-slide-up ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {/* Agent avatar */}
+                  {msg.role === 'agent' && (
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20 mt-0.5">
+                      <Bot size={14} className="text-white" />
+                    </div>
+                  )}
+
+                  {/* Bubble */}
+                  <div className={`group flex flex-col max-w-[82%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    {msg.role === 'agent' ? (
+                      <>
+                        <div className={`agent-bubble ${isStream && !msg.content ? '' : ''}`}>
+                          {msg.content ? (
+                            <div className={isStream ? 'cursor-blink' : ''}>
+                              <ReactMarkdown>{msg.content}</ReactMarkdown>
+                            </div>
+                          ) : (
+                            <TypingDots />
+                          )}
+                        </div>
+                        {msg.content && !isStream && (
+                          <div className="flex mt-1.5">
+                            <CopyButton text={msg.content} />
+                          </div>
+                        )}
+                      </>
                     ) : (
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <>
+                        <div className="user-bubble">
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                        </div>
+                        <div className="flex mt-1.5">
+                          <CopyButton text={msg.content} />
+                        </div>
+                      </>
                     )}
                   </div>
 
+                  {/* User avatar */}
+                  {msg.role === 'user' && (
+                    <div className="w-8 h-8 rounded-xl bg-zinc-800 border border-zinc-700/50 flex items-center justify-center shrink-0 mt-0.5">
+                      <User size={14} className="text-zinc-300" />
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
-            
-            {isGenerating && (
-              <div className="flex justify-start">
-                <div className="flex gap-4 max-w-[85%]">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-600 shadow-lg flex items-center justify-center text-white shrink-0">
-                    <Bot size={16} />
-                  </div>
-                  <div className="glass-card border-white/5 rounded-tl-none p-4 flex items-center space-x-2">
-                    <div className="w-2 h-2 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-2 h-2 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-2 h-2 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                  </div>
-                </div>
-              </div>
-            )}
+              );
+            })}
             <div ref={messagesEndRef} />
           </div>
         )}
+
+        {/* Scroll-to-bottom FAB */}
+        {showScrollBtn && (
+          <button
+            onClick={() => { setShowScrollBtn(false); scrollToBottom(); }}
+            className="fixed bottom-28 right-6 z-20 w-9 h-9 rounded-full glass border border-white/10
+                       flex items-center justify-center text-zinc-400 hover:text-white
+                       shadow-lg hover:shadow-xl transition-all animate-fade-in"
+          >
+            <ChevronDown size={16} />
+          </button>
+        )}
       </div>
 
-      {/* Composer Area */}
-      <div className="p-4 bg-gradient-to-t from-background via-background/90 to-transparent">
+      {/* ── Composer ────────────────────────────────────────────────────── */}
+      <div className="shrink-0 px-4 pb-8 pt-6 bg-gradient-to-t from-[#0a0a0c] via-[#0a0a0c]/95 to-transparent relative z-20">
         <div className="max-w-4xl mx-auto">
-          <div className={`relative glass rounded-2xl p-2 transition-all shadow-2xl ${
-            isGenerating ? 'opacity-50 pointer-events-none' : 'focus-within:border-indigo-500/50 focus-within:ring-4 focus-within:ring-indigo-500/10'
-          }`}>
+          <div
+            className={`
+              relative bg-white/[0.03] backdrop-blur-2xl rounded-3xl border border-white/10 transition-all duration-500 shadow-2xl shadow-black/50
+              ${isGenerating
+                ? 'opacity-60 pointer-events-none'
+                : 'focus-within:border-indigo-500/40 focus-within:bg-white/[0.05] focus-within:shadow-glow-indigo'}
+            `}
+          >
             <textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isGenerating}
-              placeholder="Describe the incident or paste a safe log excerpt..."
-              className="w-full bg-transparent border-none text-zinc-200 placeholder-zinc-500 text-sm px-4 py-3 resize-none focus:ring-0 custom-scrollbar"
+              placeholder="Ask a question or paste a log excerpt..."
+              className="
+                w-full bg-transparent border-none text-white placeholder-zinc-500
+                text-base md:text-lg px-6 pt-6 pb-2 resize-none focus:ring-0 outline-none focus:outline-none custom-scrollbar
+                min-h-[72px] max-h-[240px] leading-relaxed font-light
+              "
               rows={1}
             />
-            <div className="flex justify-between items-center px-3 pb-2 pt-1">
-              <span className="text-[11px] text-zinc-500 font-medium">Enter to send | Shift + Enter for new line</span>
-              <button 
-                onClick={handleSend}
+
+            <div className="flex items-center justify-between px-4 pb-4 pt-2">
+              <div className="flex items-center gap-3">
+                {isGenerating ? (
+                  <span className="flex items-center gap-2 text-xs font-semibold text-indigo-400 animate-pulse px-2">
+                    <Sparkles size={14} />
+                    Analyzing Infrastructure...
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-zinc-600 font-medium select-none px-2 tracking-wide uppercase">
+                    Enter to send &nbsp;·&nbsp; Shift+Enter for new line
+                  </span>
+                )}
+              </div>
+
+              <button
+                onClick={() => sendMessage()}
                 disabled={!input.trim() || isGenerating}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                className="
+                  flex items-center justify-center w-12 h-12 rounded-full
+                  bg-white hover:bg-zinc-200 text-black transition-all duration-300 shadow-lg
+                  disabled:opacity-20 disabled:cursor-not-allowed disabled:shadow-none hover:scale-105 active:scale-95
+                "
+                aria-label="Send message"
               >
-                <span className="text-xs font-medium pl-1 hidden sm:inline">Send</span>
-                <Send size={14} />
+                <Send size={18} className="ml-1" />
               </button>
             </div>
           </div>
-          <p className="text-center text-[10px] text-zinc-500 mt-4 font-medium uppercase tracking-widest">
-            Review commands before running them on production systems.
-          </p>
         </div>
       </div>
     </div>
   );
 }
+
+export default ChatArea;

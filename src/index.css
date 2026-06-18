@@ -3,41 +3,167 @@
 @tailwind utilities;
 
 @layer base {
+  * {
+    box-sizing: border-box;
+  }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-accent-500/30;
-    /* Inter is standard for Vercel/modern UI */
+    @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    selection-color: rgba(99,102,241,0.4);
+  }
+  ::selection {
+    background: rgba(99, 102, 241, 0.35);
+    color: #fff;
+  }
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
   }
 }
 
 @layer utilities {
-  /* Vercel-like Glassmorphism utilities */
+  /* ===================== GLASS EFFECTS ===================== */
   .glass {
     @apply bg-zinc-900/60 backdrop-blur-md border border-white/[0.08] shadow-lg;
   }
-  
   .glass-header {
-    @apply bg-background/80 backdrop-blur-xl border-b border-white/[0.08];
+    @apply bg-background/90 backdrop-blur-xl border-b border-white/[0.06];
   }
-
   .glass-card {
-    @apply bg-zinc-950/50 backdrop-blur-sm border border-zinc-800/80 hover:border-zinc-700 transition-colors duration-300 rounded-xl shadow-xl;
+    @apply bg-zinc-950/50 backdrop-blur-sm border border-zinc-800/80 rounded-xl shadow-xl transition-all duration-300;
+  }
+  .glass-card:hover {
+    @apply border-zinc-700/80;
+  }
+  .glass-panel {
+    @apply bg-zinc-950/80 backdrop-blur-xl border border-white/[0.06];
   }
 
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  /* ===================== SCROLLBAR ===================== */
+  .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-zinc-800 rounded-full; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { @apply bg-zinc-600; }
+
+  /* ===================== STATUS INDICATORS ===================== */
+  .status-dot-ok {
+    @apply w-2 h-2 rounded-full bg-emerald-500;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+    animation: statusPulse 2s ease-in-out infinite;
   }
-  
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
+  .status-dot-error {
+    @apply w-2 h-2 rounded-full bg-rose-500;
+    box-shadow: 0 0 6px rgba(244, 63, 94, 0.8);
   }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-zinc-800 rounded-full;
+  .status-dot-starting {
+    @apply w-2 h-2 rounded-full bg-amber-400;
+    animation: statusPulse 1s ease-in-out infinite;
   }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-zinc-700;
+
+  /* ===================== GRADIENT TEXT ===================== */
+  .gradient-text {
+    @apply text-transparent bg-clip-text;
+    background-image: linear-gradient(135deg, #e0e7ff 0%, #818cf8 50%, #6366f1 100%);
   }
+  .gradient-text-cyber {
+    @apply text-transparent bg-clip-text;
+    background-image: linear-gradient(135deg, #00d4ff 0%, #818cf8 50%, #00ff88 100%);
+  }
+
+  /* ===================== GRID BACKGROUND ===================== */
+  .cyber-grid {
+    background-image: 
+      linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* ===================== SHIMMER LOADING ===================== */
+  .shimmer-bg {
+    background: linear-gradient(
+      90deg,
+      rgba(255,255,255,0.02) 0%,
+      rgba(255,255,255,0.06) 50%,
+      rgba(255,255,255,0.02) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.8s infinite linear;
+  }
+
+  /* ===================== LOG LEVEL COLORS ===================== */
+  .log-error   { @apply text-rose-400; }
+  .log-warn    { @apply text-amber-400; }
+  .log-info    { @apply text-sky-400; }
+  .log-debug   { @apply text-zinc-500; }
+  .log-default { @apply text-zinc-300; }
+
+  /* ===================== CHAT PROSE OVERRIDES ===================== */
+  .chat-prose h1, .chat-prose h2, .chat-prose h3 { @apply font-semibold text-zinc-100 mt-4 mb-2; }
+  .chat-prose h1 { @apply text-lg; }
+  .chat-prose h2 { @apply text-base; }
+  .chat-prose h3 { @apply text-sm; }
+  .chat-prose p  { @apply text-zinc-300 leading-relaxed mb-3; }
+  .chat-prose ul, .chat-prose ol { @apply pl-5 mb-3 space-y-1; }
+  .chat-prose li { @apply text-zinc-300 text-sm; }
+  .chat-prose ul li { @apply list-disc; }
+  .chat-prose ol li { @apply list-decimal; }
+  .chat-prose code {
+    @apply bg-zinc-900 border border-zinc-800 text-indigo-300 px-1.5 py-0.5 rounded text-[0.82em] font-mono;
+  }
+  .chat-prose pre {
+    @apply bg-zinc-950 border border-zinc-800/80 rounded-xl p-4 mb-3 overflow-x-auto custom-scrollbar;
+  }
+  .chat-prose pre code { @apply bg-transparent border-0 p-0 text-zinc-200; }
+  .chat-prose strong { @apply text-zinc-100 font-semibold; }
+  .chat-prose em { @apply text-zinc-400 italic; }
+  .chat-prose blockquote {
+    @apply border-l-2 border-indigo-500/50 pl-4 my-3 text-zinc-400 italic;
+  }
+  .chat-prose a { @apply text-indigo-400 underline underline-offset-2 hover:text-indigo-300; }
+  .chat-prose hr { @apply border-zinc-800 my-4; }
+  .chat-prose table { @apply w-full text-sm my-3; }
+  .chat-prose th { @apply text-left text-zinc-400 font-medium pb-2 border-b border-zinc-800; }
+  .chat-prose td { @apply py-2 border-b border-zinc-900 text-zinc-300; }
+
+  /* ===================== CURSOR BLINK ===================== */
+  .cursor-blink::after {
+    content: '▋';
+    @apply text-indigo-400;
+    animation: blink 0.8s step-end infinite;
+  }
+
+  /* ===================== INTERACTIVE STATES ===================== */
+  .btn-primary {
+    @apply bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-medium 
+           rounded-xl transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply text-zinc-400 hover:text-zinc-200 hover:bg-white/5 active:bg-white/10 
+           rounded-xl transition-all duration-150;
+  }
+}
+
+@layer components {
+  /* ===================== AGENT MESSAGE BUBBLE ===================== */
+  .agent-bubble {
+    @apply p-4 rounded-2xl rounded-tl-none bg-zinc-950/50 border border-zinc-800/80 
+           text-sm leading-relaxed shadow-xl chat-prose;
+  }
+  .user-bubble {
+    @apply p-4 rounded-2xl rounded-tr-none bg-zinc-800/80 text-zinc-100 text-sm 
+           leading-relaxed shadow-md;
+  }
+}
+
+/* ===================== KEYFRAMES ===================== */
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
