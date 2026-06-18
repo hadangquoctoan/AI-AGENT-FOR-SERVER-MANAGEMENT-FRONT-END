@@ -211,8 +211,8 @@ function ChatArea({ sendRef }) {
                 >
                   {/* Agent avatar */}
                   {msg.role === 'agent' && (
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20 mt-0.5">
-                      <Bot size={14} className="text-white" />
+                    <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-lg shadow-white/10 mt-0.5">
+                      <Bot size={14} className="text-black" />
                     </div>
                   )}
 
@@ -281,7 +281,7 @@ function ChatArea({ sendRef }) {
               relative bg-white/[0.03] backdrop-blur-2xl rounded-3xl border border-white/10 transition-all duration-500 shadow-2xl shadow-black/50
               ${isGenerating
                 ? 'opacity-60 pointer-events-none'
-                : 'focus-within:border-indigo-500/40 focus-within:bg-white/[0.05] focus-within:shadow-glow-indigo'}
+                : 'focus-within:border-white/40 focus-within:bg-white/[0.05] focus-within:shadow-glow-white'}
             `}
           >
             <textarea
@@ -302,7 +302,7 @@ function ChatArea({ sendRef }) {
             <div className="flex items-center justify-between px-4 pb-4 pt-2">
               <div className="flex items-center gap-3">
                 {isGenerating ? (
-                  <span className="flex items-center gap-2 text-xs font-semibold text-indigo-400 animate-pulse px-2">
+                  <span className="flex items-center gap-2 text-xs font-semibold text-zinc-300 animate-pulse px-2">
                     <Sparkles size={14} />
                     Analyzing Infrastructure...
                   </span>

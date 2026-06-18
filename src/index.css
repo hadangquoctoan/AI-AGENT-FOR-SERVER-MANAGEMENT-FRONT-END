@@ -46,34 +46,34 @@
 
   /* ===================== STATUS INDICATORS ===================== */
   .status-dot-ok {
-    @apply w-2 h-2 rounded-full bg-emerald-500;
-    box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+    @apply w-2 h-2 rounded-full bg-white;
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
     animation: statusPulse 2s ease-in-out infinite;
   }
   .status-dot-error {
-    @apply w-2 h-2 rounded-full bg-rose-500;
-    box-shadow: 0 0 6px rgba(244, 63, 94, 0.8);
+    @apply w-2 h-2 rounded-full bg-zinc-600;
+    box-shadow: 0 0 6px rgba(82, 82, 91, 0.8);
   }
   .status-dot-starting {
-    @apply w-2 h-2 rounded-full bg-amber-400;
+    @apply w-2 h-2 rounded-full bg-zinc-400;
     animation: statusPulse 1s ease-in-out infinite;
   }
 
   /* ===================== GRADIENT TEXT ===================== */
   .gradient-text {
     @apply text-transparent bg-clip-text;
-    background-image: linear-gradient(135deg, #e0e7ff 0%, #818cf8 50%, #6366f1 100%);
+    background-image: linear-gradient(135deg, #ffffff 0%, #a1a1aa 50%, #52525b 100%);
   }
   .gradient-text-cyber {
     @apply text-transparent bg-clip-text;
-    background-image: linear-gradient(135deg, #00d4ff 0%, #818cf8 50%, #00ff88 100%);
+    background-image: linear-gradient(135deg, #ffffff 0%, #a1a1aa 50%, #ffffff 100%);
   }
 
   /* ===================== GRID BACKGROUND ===================== */
   .cyber-grid {
     background-image: 
-      linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px);
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
     background-size: 40px 40px;
   }
 
@@ -90,11 +90,11 @@
   }
 
   /* ===================== LOG LEVEL COLORS ===================== */
-  .log-error   { @apply text-rose-400; }
-  .log-warn    { @apply text-amber-400; }
-  .log-info    { @apply text-sky-400; }
+  .log-error   { @apply text-zinc-100 font-bold; }
+  .log-warn    { @apply text-zinc-300 font-medium; }
+  .log-info    { @apply text-zinc-400; }
   .log-debug   { @apply text-zinc-500; }
-  .log-default { @apply text-zinc-300; }
+  .log-default { @apply text-zinc-400; }
 
   /* ===================== CHAT PROSE OVERRIDES ===================== */
   .chat-prose h1, .chat-prose h2, .chat-prose h3 { @apply font-semibold text-zinc-100 mt-4 mb-2; }
@@ -116,9 +116,9 @@
   .chat-prose strong { @apply text-zinc-100 font-semibold; }
   .chat-prose em { @apply text-zinc-400 italic; }
   .chat-prose blockquote {
-    @apply border-l-2 border-indigo-500/50 pl-4 my-3 text-zinc-400 italic;
+    @apply border-l-2 border-white/50 pl-4 my-3 text-zinc-400 italic;
   }
-  .chat-prose a { @apply text-indigo-400 underline underline-offset-2 hover:text-indigo-300; }
+  .chat-prose a { @apply text-white underline underline-offset-2 hover:text-zinc-300; }
   .chat-prose hr { @apply border-zinc-800 my-4; }
   .chat-prose table { @apply w-full text-sm my-3; }
   .chat-prose th { @apply text-left text-zinc-400 font-medium pb-2 border-b border-zinc-800; }
@@ -127,13 +127,13 @@
   /* ===================== CURSOR BLINK ===================== */
   .cursor-blink::after {
     content: '▋';
-    @apply text-indigo-400;
+    @apply text-zinc-300;
     animation: blink 0.8s step-end infinite;
   }
 
   /* ===================== INTERACTIVE STATES ===================== */
   .btn-primary {
-    @apply bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-medium 
+    @apply bg-white hover:bg-zinc-200 active:bg-zinc-300 text-black font-medium 
            rounded-xl transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed;
   }
   .btn-ghost {

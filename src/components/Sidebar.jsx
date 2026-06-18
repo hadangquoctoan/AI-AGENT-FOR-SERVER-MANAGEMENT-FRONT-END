@@ -10,37 +10,37 @@ const QUICK_PROMPTS = [
   {
     icon: <AlertCircle size={14} />,
     label: 'Nginx 502',
-    color: 'text-rose-400',
+    color: 'text-zinc-300',
     prompt: 'How do I diagnose an Nginx 502 Bad Gateway error? Walk me through the evidence-first troubleshooting steps.',
   },
   {
     icon: <HardDrive size={14} />,
     label: 'Disk almost full',
-    color: 'text-amber-400',
+    color: 'text-zinc-300',
     prompt: 'The server disk is critically low. Give me a safe diagnostic and cleanup procedure without deleting important data.',
   },
   {
     icon: <Cpu size={14} />,
     label: 'High CPU spike',
-    color: 'text-sky-400',
+    color: 'text-zinc-300',
     prompt: 'Investigate a sudden CPU spike on a Linux server. Provide commands in order and explain what each reveals.',
   },
   {
     icon: <Wifi size={14} />,
     label: 'SSH refused',
-    color: 'text-purple-400',
+    color: 'text-zinc-300',
     prompt: 'SSH connections are being refused. What should I check first and what are the most common causes?',
   },
   {
     icon: <Database size={14} />,
     label: 'OOM / Memory',
-    color: 'text-emerald-400',
+    color: 'text-zinc-300',
     prompt: 'The server is experiencing Out-of-Memory (OOM) kills. How do I identify the memory hog and prevent recurrence?',
   },
   {
     icon: <Activity size={14} />,
     label: 'Slow response time',
-    color: 'text-indigo-400',
+    color: 'text-zinc-300',
     prompt: 'My web service has very slow response times. What should I measure — CPU, memory, disk I/O, or network? Where do I start?',
   },
 ];
@@ -67,7 +67,7 @@ function AgentStatusCard({ status }) {
         </p>
         <p className="text-[10px] text-zinc-500 mt-0.5 truncate font-mono">{label}</p>
         {isOk && status.agent_info?.rag_chunks != null && (
-          <p className="text-[10px] text-indigo-400/70 mt-0.5">{status.agent_info.rag_chunks} knowledge chunks loaded</p>
+          <p className="text-[10px] text-zinc-400 mt-0.5">{status.agent_info.rag_chunks} knowledge chunks loaded</p>
         )}
       </div>
     </div>
@@ -122,16 +122,16 @@ export default function Sidebar({ isOpen, setIsOpen, agentStatus, onQuickPrompt,
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] shrink-0">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <Terminal size={17} className="text-white" />
+            <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-lg shadow-white/10">
+              <Terminal size={17} className="text-black" />
             </div>
             {/* Glow dot */}
             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-background border-2 border-background flex items-center justify-center">
               {agentStatus.status === 'ok'
-                ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                ? <span className="w-1.5 h-1.5 rounded-full bg-white" />
                 : agentStatus.status === 'starting'
-                ? <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                : <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                ? <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-pulse" />
+                : <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
               }
             </span>
           </div>
@@ -157,8 +157,8 @@ export default function Sidebar({ isOpen, setIsOpen, agentStatus, onQuickPrompt,
         <button
           onClick={() => { setIsOpen(false); setActiveTab('assistant'); }}
           className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl
-                     bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20
-                     hover:border-indigo-500/40 text-indigo-300 text-sm font-medium
+                     bg-white/10 hover:bg-white/20 border border-white/20
+                     hover:border-white/40 text-white text-sm font-medium
                      transition-all duration-200 group"
         >
           <Plus size={14} className="group-hover:rotate-90 transition-transform duration-200" />
@@ -210,11 +210,11 @@ export default function Sidebar({ isOpen, setIsOpen, agentStatus, onQuickPrompt,
                   w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium
                   transition-all duration-150
                   ${activeTab === tab
-                    ? 'bg-indigo-600/15 text-indigo-300 border border-indigo-500/20'
+                    ? 'bg-white/15 text-white border border-white/20'
                     : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] border border-transparent'}
                 `}
               >
-                <span className={activeTab === tab ? 'text-indigo-400' : 'text-zinc-600'}>{icon}</span>
+                <span className={activeTab === tab ? 'text-white' : 'text-zinc-600'}>{icon}</span>
                 {label}
               </button>
             ))}
@@ -241,8 +241,8 @@ export default function Sidebar({ isOpen, setIsOpen, agentStatus, onQuickPrompt,
             onClick={handleClearAll}
             disabled={clearLoading}
             className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl
-                       text-[11px] font-medium text-rose-500/70 hover:text-rose-400
-                       hover:bg-rose-500/[0.06] border border-transparent hover:border-rose-500/20
+                       text-[11px] font-medium text-zinc-400 hover:text-white
+                       hover:bg-white/[0.06] border border-transparent hover:border-white/20
                        transition-all disabled:opacity-40"
             title="Delete all chat history and memory"
           >

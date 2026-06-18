@@ -44,9 +44,9 @@ function App() {
     <div className="flex h-screen w-full max-w-full overflow-x-hidden bg-[#0a0a0c] text-foreground relative font-sans">
       {/* Ambient background glow */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-900/20 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 -right-40 w-80 h-80 bg-purple-900/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-indigo-950/30 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl" />
+        <div className="absolute top-1/2 -right-40 w-80 h-80 bg-zinc-600/[0.03] rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl" />
       </div>
 
       {/* Mobile sidebar backdrop */}
