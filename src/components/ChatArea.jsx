@@ -292,7 +292,7 @@ function ChatArea({ sendRef }) {
               disabled={isGenerating}
               placeholder="Ask a question or paste a log excerpt..."
               className="
-                w-full bg-transparent border-none text-white placeholder-zinc-500
+                w-full bg-transparent border-none text-white placeholder-zinc-400
                 text-base md:text-lg px-6 pt-6 pb-2 resize-none focus:ring-0 outline-none focus:outline-none custom-scrollbar
                 min-h-[72px] max-h-[240px] leading-relaxed font-light
               "
@@ -307,7 +307,7 @@ function ChatArea({ sendRef }) {
                     Analyzing Infrastructure...
                   </span>
                 ) : (
-                  <span className="text-[11px] text-zinc-600 font-medium select-none px-2 tracking-wide uppercase">
+                  <span className="text-[11px] text-zinc-400 font-medium select-none px-2 tracking-wide uppercase">
                     Enter to send &nbsp;·&nbsp; Shift+Enter for new line
                   </span>
                 )}

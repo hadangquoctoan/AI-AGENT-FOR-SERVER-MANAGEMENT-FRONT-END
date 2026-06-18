@@ -13,9 +13,9 @@ const STARTER_CARDS = [
     title: 'Diagnose an Incident',
     desc: 'Evidence-first diagnostic checklist for memory leaks and CPU spikes.',
     prompt: 'My Linux server is running out of memory. Walk me through a structured diagnostic.',
-    icon: <Activity size={24} className="text-zinc-100" />,
-    bg: 'bg-white/[0.03] hover:bg-white/[0.06]',
-    border: 'border-white/[0.08]',
+    icon: <Activity size={24} className="text-white drop-shadow-md" />,
+    bg: 'bg-white/[0.05] hover:bg-white/[0.08]',
+    border: 'border-white/[0.12]',
   },
   {
     id: 'c2',
@@ -24,9 +24,9 @@ const STARTER_CARDS = [
     title: 'Health Check',
     desc: 'Overall system audit.',
     prompt: 'Give me a complete health-check checklist for a production Linux server.',
-    icon: <Shield size={20} className="text-zinc-100" />,
-    bg: 'bg-white/[0.03] hover:bg-white/[0.06]',
-    border: 'border-white/[0.08]',
+    icon: <Shield size={20} className="text-white drop-shadow-md" />,
+    bg: 'bg-white/[0.05] hover:bg-white/[0.08]',
+    border: 'border-white/[0.12]',
   },
   {
     id: 'c3',
@@ -35,9 +35,9 @@ const STARTER_CARDS = [
     title: 'Service Failures',
     desc: 'Journalctl analysis.',
     prompt: 'How do I inspect recent systemd service failures using journalctl and systemctl?',
-    icon: <Terminal size={20} className="text-zinc-100" />,
-    bg: 'bg-white/[0.03] hover:bg-white/[0.06]',
-    border: 'border-white/[0.08]',
+    icon: <Terminal size={20} className="text-white drop-shadow-md" />,
+    bg: 'bg-white/[0.05] hover:bg-white/[0.08]',
+    border: 'border-white/[0.12]',
   },
   {
     id: 'c4',
@@ -46,9 +46,9 @@ const STARTER_CARDS = [
     title: 'Security & Access Logs',
     desc: 'Review auth.log and recent SSH logins to detect anomalies.',
     prompt: 'Show me the commands to analyze /var/log/auth.log for failed SSH attempts.',
-    icon: <Server size={20} className="text-zinc-100" />,
-    bg: 'bg-white/[0.03] hover:bg-white/[0.06]',
-    border: 'border-white/[0.08]',
+    icon: <Server size={20} className="text-white drop-shadow-md" />,
+    bg: 'bg-white/[0.05] hover:bg-white/[0.08]',
+    border: 'border-white/[0.12]',
   }
 ];
 
@@ -149,7 +149,7 @@ export default function WelcomeScreen({ onSelect, scrollContainer }) {
             <br />
             Zero Distractions.
           </h1>
-          <p className="mt-12 text-2xl text-zinc-400 max-w-2xl font-light leading-relaxed">
+          <p className="mt-12 text-2xl text-zinc-300 max-w-2xl font-light leading-relaxed">
             Stop digging through terminal windows. Parse logs, run diagnostics, and identify anomalies instantly with precision AI.
           </p>
         </div>
@@ -180,7 +180,7 @@ export default function WelcomeScreen({ onSelect, scrollContainer }) {
               <br/>
               Analysis
             </h2>
-            <p className="text-zinc-500 mt-6 text-lg font-light leading-relaxed max-w-sm">
+            <p className="text-zinc-300 mt-6 text-lg font-light leading-relaxed max-w-sm">
               We monitor the invisible so you don't have to. Every metric mapped and understood.
             </p>
           </div>
@@ -193,21 +193,21 @@ export default function WelcomeScreen({ onSelect, scrollContainer }) {
             <div className="marquee-track flex whitespace-nowrap items-center gap-16 md:gap-32 pr-16 md:pr-32">
               {[...Array(2)].map((_, idx) => (
                 <React.Fragment key={idx}>
-                  <span className="flex items-center gap-4 text-3xl font-bold text-zinc-300 uppercase tracking-widest"><Cpu size={40} /> SYSTEMD</span>
-                  <span className="flex items-center gap-4 text-3xl font-bold text-zinc-300 uppercase tracking-widest"><Database size={40} /> POSTGRES</span>
-                  <span className="flex items-center gap-4 text-3xl font-bold text-zinc-300 uppercase tracking-widest"><Server size={40} /> NGINX</span>
-                  <span className="flex items-center gap-4 text-3xl font-bold text-zinc-300 uppercase tracking-widest"><HardDrive size={40} /> DOCKER</span>
+                  <span className="flex items-center gap-4 text-3xl font-bold text-zinc-100 uppercase tracking-widest drop-shadow-md"><Cpu size={40} /> SYSTEMD</span>
+                  <span className="flex items-center gap-4 text-3xl font-bold text-zinc-100 uppercase tracking-widest drop-shadow-md"><Database size={40} /> POSTGRES</span>
+                  <span className="flex items-center gap-4 text-3xl font-bold text-zinc-100 uppercase tracking-widest drop-shadow-md"><Server size={40} /> NGINX</span>
+                  <span className="flex items-center gap-4 text-3xl font-bold text-zinc-100 uppercase tracking-widest drop-shadow-md"><HardDrive size={40} /> DOCKER</span>
                 </React.Fragment>
               ))}
             </div>
           </div>
 
-          <div className="w-full h-80 rounded-3xl bg-zinc-900 border border-white/[0.05] p-10 flex flex-col justify-between group overflow-hidden relative">
-            <img src="https://picsum.photos/seed/monochrome_logs/800/400?grayscale" alt="Logs" className="absolute inset-0 w-full h-full object-cover opacity-20 grayscale group-hover:scale-105 group-hover:opacity-40 transition-all duration-700 ease-out" />
-            <div className="relative z-10">
+          <div className="w-full h-80 rounded-3xl bg-zinc-900 border border-white/10 p-10 flex flex-col justify-between group overflow-hidden relative shadow-2xl shadow-black/50">
+            <img src="https://picsum.photos/seed/monochrome_logs/800/400?grayscale" alt="Logs" className="absolute inset-0 w-full h-full object-cover opacity-30 grayscale group-hover:scale-105 group-hover:opacity-50 transition-all duration-700 ease-out" />
+            <div className="relative z-10 drop-shadow-lg">
               <Activity size={32} className="text-white mb-6" />
               <h3 className="text-2xl font-bold text-white mb-2">Real-time Parsing</h3>
-              <p className="text-zinc-400">Stream your journalctl logs directly into the analysis engine.</p>
+              <p className="text-zinc-200">Stream your journalctl logs directly into the analysis engine.</p>
             </div>
           </div>
         </div>
@@ -229,12 +229,12 @@ export default function WelcomeScreen({ onSelect, scrollContainer }) {
                 <div className="mb-6 transform group-hover:scale-110 group-hover:-translate-y-1 transition-transform duration-500 ease-out origin-left text-white">
                   {card.icon}
                 </div>
-                <h3 className="text-2xl md:text-3xl font-bold text-white mb-3 leading-tight tracking-tight">
+                <h3 className="text-2xl md:text-3xl font-bold text-white mb-3 leading-tight tracking-tight drop-shadow-sm">
                   {card.title}
                 </h3>
               </div>
               
-              <p className="relative z-10 text-base text-zinc-400 font-medium max-w-sm">
+              <p className="relative z-10 text-base text-zinc-300 font-medium max-w-sm drop-shadow-sm">
                 {card.desc}
               </p>
             </button>
