@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useImperativeHandle } from 'react';
 import { Send, Bot, User, Copy, Check, Sparkles, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import WelcomeScreen from './WelcomeScreen';
 
 // ─── Utility: copy to clipboard ─────────────────────────────────────────────
 function CopyButton({ text }) {
@@ -197,7 +196,15 @@ function ChatArea({ sendRef }) {
       >
         <div className="shrink-0 h-[100px] w-full" />
         {messages.length === 0 ? (
-          <WelcomeScreen onSelect={(p) => sendMessage(p)} scrollContainer={scrollAreaRef} />
+          <div className="flex-1 flex flex-col items-center justify-center h-full pt-12 md:pt-32 pb-32 animate-fade-in">
+            <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl bg-white flex items-center justify-center shadow-2xl shadow-white/10 mb-8">
+              <Bot size={40} className="text-black" />
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight text-center">How can I help you today?</h2>
+            <p className="text-zinc-400 text-lg text-center max-w-md">
+              Ask about server diagnostics, log analysis, or infrastructure health.
+            </p>
+          </div>
         ) : (
           <div className="max-w-3xl mx-auto w-full space-y-6 pb-4 animate-fade-in">
             {messages.map((msg, idx) => {

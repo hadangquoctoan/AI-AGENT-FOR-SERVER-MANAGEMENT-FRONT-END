@@ -3,11 +3,13 @@ import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import ChatArea from './components/ChatArea';
 import LogsViewer from './components/LogsViewer';
+import WelcomeScreen from './components/WelcomeScreen';
 
 function App() {
   const [activeTab, setActiveTab]       = useState('assistant');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [agentStatus, setAgentStatus]   = useState({ status: 'starting', message: 'Checking agent...' });
+  const [isLoggedIn, setIsLoggedIn]     = useState(false);
 
   // Ref to expose sendMessage from ChatArea to Sidebar quick-prompts
   const chatSendRef = useRef(null);
@@ -49,13 +51,34 @@ function App() {
         <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-white/[0.04] rounded-full blur-3xl" />
       </div>
 
-      {/* Mobile sidebar backdrop */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
+      {!isLoggedIn ? (
+        <div className="relative z-10 w-full h-full overflow-y-auto custom-scrollbar">
+          {/* Simple header for landing page */}
+          <div className="absolute top-0 left-0 right-0 z-50 flex justify-between items-center px-6 md:px-12 pt-6 pointer-events-auto">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-lg shadow-white/10">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
+              <span className="font-bold text-lg text-white tracking-wide">OpsPilot</span>
+            </div>
+            <button 
+              onClick={() => setIsLoggedIn(true)}
+              className="px-6 py-2 rounded-full bg-white text-black font-semibold hover:bg-zinc-200 transition-colors shadow-lg shadow-white/10"
+            >
+              Enter App
+            </button>
+          </div>
+          <WelcomeScreen onLogin={() => setIsLoggedIn(true)} />
+        </div>
+      ) : (
+        <>
+          {/* Mobile sidebar backdrop */}
+          {isSidebarOpen && (
+            <div
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 md:hidden"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+          )}
 
       {/* ── Sidebar ────────────────────────────────────────────────────── */}
       <Sidebar
@@ -100,6 +123,8 @@ function App() {
           </div>
         </div>
       </main>
+        </>
+      )}
     </div>
   );
 }

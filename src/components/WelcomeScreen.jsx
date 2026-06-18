@@ -12,7 +12,6 @@ const STARTER_CARDS = [
     row: 'row-span-2',
     title: 'Diagnose an Incident',
     desc: 'Evidence-first diagnostic checklist for memory leaks and CPU spikes.',
-    prompt: 'My Linux server is running out of memory. Walk me through a structured diagnostic.',
     icon: <Activity size={24} className="text-white drop-shadow-md" />,
     bg: 'bg-white/[0.05] hover:bg-white/[0.08]',
     border: 'border-white/[0.12]',
@@ -23,7 +22,6 @@ const STARTER_CARDS = [
     row: 'row-span-1',
     title: 'Health Check',
     desc: 'Overall system audit.',
-    prompt: 'Give me a complete health-check checklist for a production Linux server.',
     icon: <Shield size={20} className="text-white drop-shadow-md" />,
     bg: 'bg-white/[0.05] hover:bg-white/[0.08]',
     border: 'border-white/[0.12]',
@@ -34,7 +32,6 @@ const STARTER_CARDS = [
     row: 'row-span-1',
     title: 'Service Failures',
     desc: 'Journalctl analysis.',
-    prompt: 'How do I inspect recent systemd service failures using journalctl and systemctl?',
     icon: <Terminal size={20} className="text-white drop-shadow-md" />,
     bg: 'bg-white/[0.05] hover:bg-white/[0.08]',
     border: 'border-white/[0.12]',
@@ -45,14 +42,13 @@ const STARTER_CARDS = [
     row: 'row-span-1',
     title: 'Security & Access Logs',
     desc: 'Review auth.log and recent SSH logins to detect anomalies.',
-    prompt: 'Show me the commands to analyze /var/log/auth.log for failed SSH attempts.',
     icon: <Server size={20} className="text-white drop-shadow-md" />,
     bg: 'bg-white/[0.05] hover:bg-white/[0.08]',
     border: 'border-white/[0.12]',
   }
 ];
 
-export default function WelcomeScreen({ onSelect, scrollContainer }) {
+export default function WelcomeScreen({ onLogin }) {
   const containerRef = useRef(null);
   const heroTextRef = useRef(null);
   const imageRef = useRef(null);
@@ -85,7 +81,6 @@ export default function WelcomeScreen({ onSelect, scrollContainer }) {
       gsap.from('.bento-card', {
         scrollTrigger: {
           trigger: bentoRef.current,
-          scroller: scrollContainer?.current || window,
           start: 'top 85%',
         },
         y: 60,
@@ -99,7 +94,6 @@ export default function WelcomeScreen({ onSelect, scrollContainer }) {
       gsap.to(imageRef.current, {
         scrollTrigger: {
           trigger: containerRef.current,
-          scroller: scrollContainer?.current || window,
           start: 'top top',
           end: 'bottom top',
           scrub: true,
@@ -112,7 +106,6 @@ export default function WelcomeScreen({ onSelect, scrollContainer }) {
       // Scroll Pinning (GSAP Split)
       ScrollTrigger.create({
         trigger: pinnedSectionRef.current,
-        scroller: scrollContainer?.current || window,
         pin: pinnedTitleRef.current,
         start: 'top 30%',
         end: 'bottom 70%',
@@ -129,13 +122,13 @@ export default function WelcomeScreen({ onSelect, scrollContainer }) {
     }, containerRef);
 
     return () => ctx.revert();
-  }, [scrollContainer]);
+  }, []);
 
   return (
-    <div ref={containerRef} className="w-full min-h-full pb-48 pt-10 px-4 md:px-12 flex flex-col items-center">
+    <div ref={containerRef} className="w-full min-h-full pb-32 pt-10 px-4 md:px-12 flex flex-col items-center">
       
       {/* ── Attention (Hero - Editorial Split) ────────────────────────── */}
-      <section className="w-full max-w-[90rem] min-h-[75vh] flex flex-col lg:flex-row justify-between items-center relative mb-32 py-32 md:py-48">
+      <section className="w-full max-w-[90rem] min-h-[85vh] flex flex-col lg:flex-row justify-between items-center relative mb-32 py-32">
         
         {/* Left Side: Massive Text */}
         <div ref={heroTextRef} className="relative z-10 w-full lg:w-[65%] max-w-6xl">
@@ -152,6 +145,12 @@ export default function WelcomeScreen({ onSelect, scrollContainer }) {
           <p className="mt-12 text-2xl text-zinc-300 max-w-2xl font-light leading-relaxed">
             Stop digging through terminal windows. Parse logs, run diagnostics, and identify anomalies instantly with precision AI.
           </p>
+          <button 
+            onClick={onLogin}
+            className="mt-12 group relative px-10 py-4 rounded-full bg-white text-black font-bold text-lg hover:scale-105 transition-all duration-500 shadow-xl shadow-white/10"
+          >
+            Enter Dashboard
+          </button>
         </div>
 
         {/* Right Side: Editorial Image with Negative Space */}
@@ -214,13 +213,13 @@ export default function WelcomeScreen({ onSelect, scrollContainer }) {
       </section>
 
       {/* ── Interest (Gapless Bento Grid) ───────────────────────────── */}
-      <section ref={bentoRef} className="w-full max-w-6xl mb-48 z-10 py-32 md:py-48">
+      <section ref={bentoRef} className="w-full max-w-6xl mb-32 z-10 py-32 md:py-48">
         <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight mb-16 text-center">Diagnostic Workflows</h2>
         <div className="grid grid-cols-1 sm:grid-cols-4 grid-flow-dense gap-4 md:gap-6 auto-rows-[200px]">
           {STARTER_CARDS.map((card) => (
             <button
               key={card.id}
-              onClick={() => onSelect(card.prompt)}
+              onClick={onLogin}
               className={`bento-card group relative overflow-hidden rounded-3xl border backdrop-blur-sm p-8 md:p-10 text-left transition-all duration-700 ease-out hover:shadow-glow-white hover:-translate-y-1 flex flex-col justify-between ${card.col} ${card.row} ${card.bg} ${card.border}`}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
@@ -242,9 +241,18 @@ export default function WelcomeScreen({ onSelect, scrollContainer }) {
         </div>
       </section>
 
-      {/* Action CTA spacer (Chat Input will sit fixed at bottom) */}
-      <div className="h-48 w-full flex items-end justify-center opacity-70">
-        <p className="text-sm font-semibold tracking-widest uppercase text-zinc-500">Initiate terminal link below</p>
+      {/* Action CTA */}
+      <div className="h-64 w-full flex flex-col items-center justify-center relative z-10 py-32 mb-32 border-t border-white/5">
+        <h2 className="text-4xl font-bold text-white mb-8 tracking-tight">Ready to Monitor?</h2>
+        <button 
+          onClick={onLogin}
+          className="group relative px-12 py-5 rounded-full bg-white text-black font-bold text-lg hover:scale-105 transition-all duration-500 shadow-2xl shadow-white/20"
+        >
+          <span className="relative z-10 flex items-center gap-3">
+            Initialize Workspace
+            <Activity size={20} className="group-hover:animate-pulse" />
+          </span>
+        </button>
       </div>
 
     </div>
