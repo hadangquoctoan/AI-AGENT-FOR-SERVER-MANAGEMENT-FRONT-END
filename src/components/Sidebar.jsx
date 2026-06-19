@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import {
-  Terminal, Shield, MessageSquare, AlertCircle, Cpu,
-  Server, X, Plus, Activity, Trash2, RotateCcw,
-  ChevronRight, Zap, HardDrive, Wifi, Database,
+  MessageSquare, LayoutDashboard, Database, Shield, Zap, CircleDot, RefreshCw,
+  Terminal, X, Plus, AlertCircle, Cpu, HardDrive, Wifi, Activity, ChevronRight,
 } from 'lucide-react';
 
 // ─── Quick-prompt presets ───────────────────────────────────────────────────
@@ -74,34 +73,7 @@ function AgentStatusCard({ status }) {
   );
 }
 
-export default function Sidebar({ isOpen, setIsOpen, agentStatus, onQuickPrompt, activeTab, setActiveTab }) {
-  const [clearLoading, setClearLoading] = useState(false);
-
-  // ── Clear history + memory (DELETE /api/history) ────────────────────────
-  const handleClearAll = async () => {
-    if (!confirm('Clear all chat history and AI memory? This cannot be undone.')) return;
-    setClearLoading(true);
-    try {
-      await fetch('/api/history', { method: 'DELETE' });
-      window.location.reload();
-    } catch (err) {
-      console.error('Clear history failed:', err);
-      alert('Failed to clear history. Is the backend running?');
-    } finally {
-      setClearLoading(false);
-    }
-  };
-
-  // ── Clear memory only (POST /api/clear_memory) ──────────────────────────
-  const handleClearMemory = async () => {
-    try {
-      await fetch('/api/clear_memory', { method: 'POST' });
-      // visual feedback only — no page reload
-      alert('AI conversation memory cleared. Chat history is preserved.');
-    } catch (err) {
-      console.error('Clear memory failed:', err);
-    }
-  };
+export default function Sidebar({ isOpen, setIsOpen, agentStatus, onQuickPrompt, activeTab, setActiveTab, onAddServer }) {
 
   // ── Fire a quick-prompt ─────────────────────────────────────────────────
   const handlePrompt = (prompt) => {
@@ -153,17 +125,37 @@ export default function Sidebar({ isOpen, setIsOpen, agentStatus, onQuickPrompt,
       {/* ── Body ────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto custom-scrollbar px-3 py-4 space-y-5">
 
-        {/* New Chat button */}
-        <button
-          onClick={() => { setIsOpen(false); setActiveTab('assistant'); }}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl
-                     bg-white/10 hover:bg-white/20 border border-white/20
-                     hover:border-white/40 text-white text-sm font-medium
-                     transition-all duration-200 group"
-        >
-          <Plus size={14} className="group-hover:rotate-90 transition-transform duration-200" />
-          New conversation
-        </button>
+          {/* App Navigation */}
+          <section className="flex-1">
+            <h2 className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest px-2 mb-2">
+              Navigation
+            </h2>
+            <nav className="space-y-1">
+              <button
+                onClick={() => { setIsOpen(false); setActiveTab('chat'); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-300 group
+                  ${activeTab === 'chat' 
+                    ? 'bg-white/10 text-white shadow-sm' 
+                    : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                  }`}
+              >
+                <MessageSquare size={16} className={activeTab === 'chat' ? 'text-white' : 'text-zinc-500 group-hover:text-white transition-colors'} />
+                Chat
+              </button>
+
+              <button
+                onClick={() => { setIsOpen(false); setActiveTab('dashboard'); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-300 group
+                  ${activeTab === 'dashboard' 
+                    ? 'bg-white/10 text-white shadow-sm' 
+                    : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                  }`}
+              >
+                <LayoutDashboard size={16} className={activeTab === 'dashboard' ? 'text-white' : 'text-zinc-500 group-hover:text-white transition-colors'} />
+                Server Dashboard
+              </button>
+            </nav>
+          </section>
 
         {/* Quick prompts */}
         <section>
@@ -192,65 +184,10 @@ export default function Sidebar({ isOpen, setIsOpen, agentStatus, onQuickPrompt,
             ))}
           </div>
         </section>
-
-        {/* Nav shortcuts */}
-        <section>
-          <h2 className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest px-2 mb-2">
-            Workspace
-          </h2>
-          <div className="space-y-0.5">
-            {[
-              { tab: 'assistant', icon: <Zap size={14} />, label: 'AI Assistant' },
-              { tab: 'logs',      icon: <Activity size={14} />, label: 'Live Logs' },
-            ].map(({ tab, icon, label }) => (
-              <button
-                key={tab}
-                onClick={() => { setActiveTab(tab); setIsOpen(false); }}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium
-                  transition-all duration-150
-                  ${activeTab === tab
-                    ? 'bg-white/15 text-white border border-white/20'
-                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] border border-transparent'}
-                `}
-              >
-                <span className={activeTab === tab ? 'text-white' : 'text-zinc-600'}>{icon}</span>
-                {label}
-              </button>
-            ))}
-          </div>
-        </section>
       </div>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <div className="px-3 py-4 border-t border-white/[0.06] space-y-2 shrink-0">
-        {/* Memory controls */}
-        <div className="grid grid-cols-2 gap-1.5">
-          <button
-            onClick={handleClearMemory}
-            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl
-                       text-[11px] font-medium text-zinc-500 hover:text-zinc-300
-                       hover:bg-white/[0.04] border border-transparent hover:border-white/[0.06]
-                       transition-all"
-            title="Clear AI short-term memory (keeps history)"
-          >
-            <RotateCcw size={12} />
-            Reset memory
-          </button>
-          <button
-            onClick={handleClearAll}
-            disabled={clearLoading}
-            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl
-                       text-[11px] font-medium text-zinc-400 hover:text-white
-                       hover:bg-white/[0.06] border border-transparent hover:border-white/20
-                       transition-all disabled:opacity-40"
-            title="Delete all chat history and memory"
-          >
-            <Trash2 size={12} />
-            {clearLoading ? 'Clearing…' : 'Clear all'}
-          </button>
-        </div>
-
         {/* Agent status card */}
         <AgentStatusCard status={agentStatus} />
 

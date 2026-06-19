@@ -40,7 +40,7 @@ function TypingDots() {
 }
 
 // ─── ChatArea (main component) ───────────────────────────────────────────────
-function ChatArea({ sendRef }) {
+function ChatArea({ sendRef, compact }) {
   const [input, setInput]           = useState('');
   const [messages, setMessages]     = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -186,24 +186,28 @@ function ChatArea({ sendRef }) {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full cyber-grid">
+    <div className="flex flex-col h-full min-h-0 cyber-grid">
       {/* ── Messages list ───────────────────────────────────────────────── */}
       <div
         id="welcome-scroll-container"
         ref={scrollAreaRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-6 relative"
+        className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 pb-6 relative"
       >
-        <div className="shrink-0 h-[100px] w-full" />
+        <div className={`shrink-0 ${compact ? 'h-4' : 'h-[100px]'} w-full`} />
         {messages.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center h-full pt-12 md:pt-32 pb-32 animate-fade-in">
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl bg-white flex items-center justify-center shadow-2xl shadow-white/10 mb-8">
-              <Bot size={40} className="text-black" />
+          <div className={`flex-1 flex flex-col items-center justify-center h-full ${compact ? 'pt-4 pb-12' : 'pt-12 md:pt-32 pb-32'} animate-fade-in`}>
+            <div className={`${compact ? 'w-12 h-12 rounded-2xl mb-4' : 'w-16 h-16 md:w-20 md:h-20 rounded-3xl mb-8'} bg-white flex items-center justify-center shadow-2xl shadow-white/10`}>
+              <Bot size={compact ? 24 : 40} className="text-black" />
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight text-center">How can I help you today?</h2>
-            <p className="text-zinc-400 text-lg text-center max-w-md">
-              Ask about server diagnostics, log analysis, or infrastructure health.
-            </p>
+            <h2 className={`${compact ? 'text-xl' : 'text-3xl md:text-4xl'} font-bold text-white mb-2 md:mb-4 tracking-tight text-center`}>
+              How can I help?
+            </h2>
+            {!compact && (
+              <p className="text-zinc-400 text-lg text-center max-w-md">
+                Ask about server diagnostics, log analysis, or infrastructure health.
+              </p>
+            )}
           </div>
         ) : (
           <div className="max-w-3xl mx-auto w-full space-y-6 pb-4 animate-fade-in">
@@ -281,7 +285,7 @@ function ChatArea({ sendRef }) {
       </div>
 
       {/* ── Composer ────────────────────────────────────────────────────── */}
-      <div className="shrink-0 px-4 pb-8 pt-6 bg-gradient-to-t from-[#0a0a0c] via-[#0a0a0c]/95 to-transparent relative z-20">
+      <div className={`shrink-0 px-4 ${compact ? 'pb-4 pt-4' : 'pb-8 pt-6'} bg-gradient-to-t from-[#0a0a0c] via-[#0a0a0c]/95 to-transparent relative z-20`}>
         <div className="max-w-4xl mx-auto">
           <div
             className={`
@@ -297,12 +301,13 @@ function ChatArea({ sendRef }) {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isGenerating}
-              placeholder="Ask a question or paste a log excerpt..."
-              className="
+              placeholder="Ask a question..."
+              className={`
                 w-full bg-transparent border-none text-white placeholder-zinc-400
-                text-base md:text-lg px-6 pt-6 pb-2 resize-none focus:ring-0 outline-none focus:outline-none custom-scrollbar
-                min-h-[72px] max-h-[240px] leading-relaxed font-light
-              "
+                ${compact ? 'text-sm px-4 pt-4 pb-1 min-h-[56px] max-h-[120px]' : 'text-base md:text-lg px-6 pt-6 pb-2 min-h-[72px] max-h-[240px]'} 
+                resize-none focus:ring-0 outline-none focus:outline-none custom-scrollbar
+                leading-relaxed font-light
+              `}
               rows={1}
             />
 
@@ -311,26 +316,28 @@ function ChatArea({ sendRef }) {
                 {isGenerating ? (
                   <span className="flex items-center gap-2 text-xs font-semibold text-zinc-300 animate-pulse px-2">
                     <Sparkles size={14} />
-                    Analyzing Infrastructure...
+                    {!compact && "Analyzing Infrastructure..."}
                   </span>
                 ) : (
-                  <span className="text-[11px] text-zinc-400 font-medium select-none px-2 tracking-wide uppercase">
-                    Enter to send &nbsp;·&nbsp; Shift+Enter for new line
-                  </span>
+                  !compact && (
+                    <span className="text-[11px] text-zinc-400 font-medium select-none px-2 tracking-wide uppercase">
+                      Enter to send &nbsp;·&nbsp; Shift+Enter for new line
+                    </span>
+                  )
                 )}
               </div>
 
               <button
                 onClick={() => sendMessage()}
                 disabled={!input.trim() || isGenerating}
-                className="
-                  flex items-center justify-center w-12 h-12 rounded-full
+                className={`
+                  flex items-center justify-center ${compact ? 'w-10 h-10' : 'w-12 h-12'} rounded-full
                   bg-white hover:bg-zinc-200 text-black transition-all duration-300 shadow-lg
                   disabled:opacity-20 disabled:cursor-not-allowed disabled:shadow-none hover:scale-105 active:scale-95
-                "
+                `}
                 aria-label="Send message"
               >
-                <Send size={18} className="ml-1" />
+                <Send size={compact ? 16 : 18} className="ml-1" />
               </button>
             </div>
           </div>
