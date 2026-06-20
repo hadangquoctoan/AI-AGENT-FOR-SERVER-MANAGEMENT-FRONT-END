@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import ServerDashboard from './components/ServerDashboard';
@@ -6,14 +6,16 @@ import WelcomeScreen from './components/WelcomeScreen';
 import AuthPage from './components/AuthPage';
 
 function App() {
-  const [activeTab, setActiveTab]       = useState('chat');
+  const [activeTab, setActiveTab]       = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [agentStatus, setAgentStatus]   = useState({ status: 'starting', message: 'Checking agent...' });
   const [isLoggedIn, setIsLoggedIn]     = useState(false);
   const [authView, setAuthView]         = useState('welcome');
 
-  // Ref to expose sendMessage from ChatArea to Sidebar quick-prompts
-  const chatSendRef = useRef(null);
+  // ── Session management ────────────────────────────────────────────────
+  const [sessions, setSessions]             = useState([]);
+  const [currentSessionId, setCurrentSessionId] = useState(() => localStorage.getItem('chatSessionId'));
+
 
   // ── Poll /api/status every 10s ──────────────────────────────────────────
   useEffect(() => {
@@ -34,14 +36,81 @@ function App() {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  // ── Quick-prompt handler: switch to chat tab then fire message ─────
-  const handleQuickPrompt = useCallback((prompt) => {
-    setActiveTab('chat');
-    // Small delay so ChatArea mounts/renders before we call send
-    setTimeout(() => {
-      if (chatSendRef.current) chatSendRef.current(prompt);
-    }, 80);
+  // ── Fetch chat sessions list ───────────────────────────────────────────
+  const fetchSessions = useCallback(async () => {
+    const userId = localStorage.getItem('userId');
+    const token  = localStorage.getItem('token');
+    const currentSid = localStorage.getItem('chatSessionId');
+    if (!userId || !token) return;
+    try {
+      const res = await fetch(`http://localhost:8080/api/sessions/user/${userId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        let data = await res.json();
+        
+        // Normalize id to sessionId just in case the backend uses 'id'
+        data = data.map(s => ({ ...s, sessionId: s.sessionId || s.id }));
+
+        // If the backend is slow to return the newly created session, keep it in the UI artificially
+        if (currentSid && !data.find(s => s.sessionId === currentSid)) {
+          setSessions(prev => {
+            const existing = prev.find(s => s.sessionId === currentSid);
+            return [{ 
+              sessionId: currentSid, 
+              title: existing?.title || 'New Chat Session' 
+            }, ...data];
+          });
+        } else {
+          setSessions(data);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch sessions:', e.message);
+    }
   }, []);
+
+  // ── Initialize session & load list on login ───────────────────────────
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const init = async () => {
+      const sid = localStorage.getItem('chatSessionId');
+      if (sid) {
+        setCurrentSessionId(sid);
+      } else {
+        setCurrentSessionId(null);
+      }
+      fetchSessions();
+    };
+    init();
+  }, [isLoggedIn, fetchSessions]);
+
+  // ── Create a brand-new chat session (Frontend only until first message) 
+  const handleNewChat = useCallback(() => {
+    localStorage.removeItem('chatSessionId');
+    setCurrentSessionId(null);
+    setActiveTab('chat');
+    setIsSidebarOpen(false);
+  }, []);
+
+  const handleSessionCreated = useCallback((newId) => {
+    setCurrentSessionId(newId);
+    fetchSessions();
+  }, [fetchSessions]);
+
+  // ── Switch to an existing session ─────────────────────────────────────
+  const handleSelectSession = useCallback((sessionId) => {
+    localStorage.setItem('chatSessionId', sessionId);
+    setCurrentSessionId(sessionId);
+    setActiveTab('chat');
+    setIsSidebarOpen(false);
+  }, []);
+
+  // ── Refresh sessions after AI generates a title (~4s delay) ───────────
+  const handleChatDone = useCallback(() => {
+    setTimeout(() => fetchSessions(), 4000);
+  }, [fetchSessions]);
+
 
   return (
     <div className="flex h-screen w-full max-w-full overflow-x-hidden bg-[#0a0a0c] text-foreground relative font-sans">
@@ -93,10 +162,13 @@ function App() {
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
         agentStatus={agentStatus}
-        onQuickPrompt={handleQuickPrompt}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onAddServer={() => setShowServerModal(true)}
+        sessions={sessions}
+        currentSessionId={currentSessionId}
+        onSelectSession={handleSelectSession}
+        onNewChat={handleNewChat}
       />
 
       {/* ── Main content ───────────────────────────────────────────────── */}
@@ -109,7 +181,13 @@ function App() {
               activeTab === 'chat' ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'
             }`}
           >
-            {activeTab === 'chat' && <ChatArea sendRef={chatSendRef} />}
+            {activeTab === 'chat' && (
+              <ChatArea 
+                sessionId={currentSessionId} 
+                onSessionCreated={handleSessionCreated} 
+                onChatDone={handleChatDone} 
+              />
+            )}
           </div>
 
           {/* Server Dashboard Tab */}

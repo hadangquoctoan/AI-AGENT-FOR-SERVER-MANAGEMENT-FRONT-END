@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback, useImperativeHandle } from 'react';
-import { Send, Bot, User, Copy, Check, Sparkles, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { Send, Bot, User, Copy, Check, Sparkles, ChevronDown, Play, X, TerminalSquare } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 // ─── Utility: copy to clipboard ─────────────────────────────────────────────
@@ -40,7 +40,7 @@ function TypingDots() {
 }
 
 // ─── ChatArea (main component) ───────────────────────────────────────────────
-function ChatArea({ sendRef, compact }) {
+const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, onSessionCreated, onExecuteCommand }, ref) => {
   const [input, setInput]           = useState('');
   const [messages, setMessages]     = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -50,16 +50,41 @@ function ChatArea({ sendRef, compact }) {
   const scrollAreaRef    = useRef(null);
   const textareaRef      = useRef(null);
 
-  // ── Load history on mount ─────────────────────────────────────────────────
+  // Resolve session ID: prop > localStorage fallback
+  const sessionId = propSessionId || localStorage.getItem('chatSessionId');
+
+  // ── Load history when session changes ─────────────────────────────────
   useEffect(() => {
-    fetch('/api/history')
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((d) => { if (d?.messages) setMessages(d.messages); })
-      .catch((e) => console.warn('History load skipped:', e.message));
-  }, []);
+    if (!sessionId) {
+      setMessages([]);
+      return;
+    }
+
+    const loadHistory = async () => {
+      const token = localStorage.getItem('token');
+      try {
+        const historyRes = await fetch(`http://localhost:8080/api/sessions/${sessionId}/history`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (historyRes.ok) {
+          const data = await historyRes.json();
+          const mapped = data.map(msg => ({
+            role: (msg.role || '').toLowerCase() === 'ai' ? 'agent' : 'user',
+            content: msg.content
+          }));
+          setMessages(mapped);
+        } else {
+          setMessages([]);
+        }
+      } catch (e) {
+        console.warn('History load skipped:', e.message);
+        setMessages([]);
+      }
+    };
+
+    setMessages([]);
+    loadHistory();
+  }, [sessionId]);
 
   // ── Auto-scroll ────────────────────────────────────────────────────────────
   const scrollToBottom = useCallback((behavior = 'smooth') => {
@@ -85,10 +110,38 @@ function ChatArea({ sendRef, compact }) {
     ta.style.height = Math.min(ta.scrollHeight, 180) + 'px';
   }, [input]);
 
-  // ── Core send function (also exposed via ref for sidebar quick-prompts) ────
+  // ── Core send function ─────────────────────────────────────────────────────
   const sendMessage = useCallback(async (queryOverride) => {
     const query = (queryOverride ?? input).trim();
     if (!query || isGenerating) return;
+
+    let activeSessionId = sessionId;
+
+    if (!activeSessionId) {
+      // Create new session
+      const userId = localStorage.getItem('userId');
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch(`http://localhost:8080/api/sessions?userId=${userId}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          activeSessionId = await res.text();
+          localStorage.setItem('chatSessionId', activeSessionId);
+          if (onSessionCreated) onSessionCreated(activeSessionId);
+        } else {
+          throw new Error('Failed to create session');
+        }
+      } catch (err) {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'user',  content: query },
+          { role: 'agent', content: '> ⚠️ **Error:** Could not create a new chat session.' },
+        ]);
+        return;
+      }
+    }
 
     setInput('');
     setMessages((prev) => [
@@ -104,7 +157,11 @@ function ChatArea({ sendRef, compact }) {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ 
+          query, 
+          session_id: activeSessionId,
+          auth_token: localStorage.getItem('token')
+        }),
       });
 
       if (!response.ok) {
@@ -142,6 +199,7 @@ function ChatArea({ sendRef, compact }) {
             }
             if (data.done) {
               setIsGenerating(false);
+              if (onChatDone) onChatDone();
             }
             if (data.error) {
               setMessages((prev) => {
@@ -172,10 +230,77 @@ function ChatArea({ sendRef, compact }) {
       });
       setIsGenerating(false);
     }
-  }, [input, isGenerating, scrollToBottom]);
+  }, [input, isGenerating, sessionId, scrollToBottom, onChatDone]);
 
-  // Expose sendMessage to App via ref (for sidebar quick-prompts)
-  useImperativeHandle(sendRef, () => sendMessage, [sendMessage]);
+  // Expose methods to parent
+  useImperativeHandle(ref, () => ({
+    sendSystemResult: async (cmd, output) => {
+      const activeSessionId = sessionId || localStorage.getItem('chatSessionId');
+      if (!activeSessionId || isGenerating) return;
+
+      const hiddenPrompt = `Đây là kết quả lệnh mày vừa chạy (${cmd}), phân tích đi:\n\`\`\`\n${output}\n\`\`\``;
+
+      setMessages((prev) => [
+        ...prev,
+        { role: 'system_result', content: `Đã thực thi lệnh: ${cmd}` },
+        { role: 'agent', content: '' },
+      ]);
+      setIsGenerating(true);
+      scrollToBottom('auto');
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            query: hiddenPrompt, 
+            session_id: activeSessionId,
+            auth_token: localStorage.getItem('token')
+          }),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const raw = line.slice(6).trim();
+            if (!raw) continue;
+            try {
+              const data = JSON.parse(raw);
+              if (data.chunk !== undefined) {
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  const last = updated[updated.length - 1];
+                  updated[updated.length - 1] = { ...last, content: last.content + data.chunk };
+                  return updated;
+                });
+              }
+              if (data.done) {
+                setIsGenerating(false);
+                if (onChatDone) onChatDone();
+              }
+              if (data.error) {
+                setIsGenerating(false);
+              }
+            } catch (e) {}
+          }
+        }
+      } catch (err) {
+        setIsGenerating(false);
+      }
+    }
+  }));
+
+
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -234,7 +359,42 @@ function ChatArea({ sendRef, compact }) {
                         <div className={`agent-bubble ${isStream && !msg.content ? '' : ''}`}>
                           {msg.content ? (
                             <div className={isStream ? 'cursor-blink' : ''}>
-                              <ReactMarkdown>{msg.content}</ReactMarkdown>
+                              <ReactMarkdown
+                                components={{
+                                  code({node, inline, className, children, ...props}) {
+                                    const match = /language-(\w+)/.exec(className || '');
+                                    const codeText = String(children).replace(/\n$/, '');
+                                    const isCommand = match && ['bash', 'sh'].includes(match[1]);
+                                    return !inline && isCommand ? (
+                                      <div className="mt-3 mb-3 rounded-xl bg-[#1e1e1e] border border-white/10 overflow-hidden shadow-xl">
+                                        <div className="bg-black/40 px-3 py-2 flex justify-between items-center text-xs text-zinc-400 font-mono border-b border-white/5">
+                                           <span className="flex items-center gap-2"><TerminalSquare size={14}/> {match[1]} command</span>
+                                           <div className="flex gap-2">
+                                             <button onClick={() => onExecuteCommand && onExecuteCommand(codeText)} className="flex items-center gap-1.5 text-black font-bold bg-green-400 hover:bg-green-300 px-3 py-1.5 rounded-lg transition-colors">
+                                                <Play size={14}/> Thực thi lệnh này
+                                             </button>
+                                           </div>
+                                        </div>
+                                        <pre className="p-4 overflow-x-auto text-sm text-zinc-300">
+                                          <code className={className} {...props}>
+                                            {children}
+                                          </code>
+                                        </pre>
+                                      </div>
+                                    ) : !inline ? (
+                                      <pre className="p-3 rounded-lg bg-black/50 overflow-x-auto text-sm my-2 border border-white/5">
+                                        <code className={className} {...props}>{children}</code>
+                                      </pre>
+                                    ) : (
+                                      <code className="bg-white/10 px-1.5 py-0.5 rounded text-sm font-mono text-zinc-300" {...props}>
+                                        {children}
+                                      </code>
+                                    );
+                                  }
+                                }}
+                              >
+                                {msg.content}
+                              </ReactMarkdown>
                             </div>
                           ) : (
                             <TypingDots />
@@ -245,6 +405,13 @@ function ChatArea({ sendRef, compact }) {
                             <CopyButton text={msg.content} />
                           </div>
                         )}
+                      </>
+                    ) : msg.role === 'system_result' ? (
+                      <>
+                        <div className="bg-zinc-800/60 border border-zinc-700 rounded-xl px-4 py-2 text-sm text-zinc-400 font-mono flex items-center gap-2">
+                           <TerminalSquare size={14} className="text-zinc-500" />
+                           {msg.content}
+                        </div>
                       </>
                     ) : (
                       <>
@@ -263,6 +430,9 @@ function ChatArea({ sendRef, compact }) {
                     <div className="w-8 h-8 rounded-xl bg-zinc-800 border border-zinc-700/50 flex items-center justify-center shrink-0 mt-0.5">
                       <User size={14} className="text-zinc-300" />
                     </div>
+                  )}
+                  {msg.role === 'system_result' && (
+                    <div className="w-8 h-8 rounded-xl bg-transparent flex items-center justify-center shrink-0 mt-0.5" />
                   )}
                 </div>
               );
@@ -345,6 +515,6 @@ function ChatArea({ sendRef, compact }) {
       </div>
     </div>
   );
-}
+});
 
 export default ChatArea;

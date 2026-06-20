@@ -1,48 +1,10 @@
 import React, { useState } from 'react';
 import {
   MessageSquare, LayoutDashboard, Database, Shield, Zap, CircleDot, RefreshCw,
-  Terminal, X, Plus, AlertCircle, Cpu, HardDrive, Wifi, Activity, ChevronRight,
+  Terminal, X, Plus, AlertCircle, Cpu, HardDrive, Wifi, Activity, ChevronRight, User
 } from 'lucide-react';
 
-// ─── Quick-prompt presets ───────────────────────────────────────────────────
-const QUICK_PROMPTS = [
-  {
-    icon: <AlertCircle size={14} />,
-    label: 'Nginx 502',
-    color: 'text-zinc-300',
-    prompt: 'How do I diagnose an Nginx 502 Bad Gateway error? Walk me through the evidence-first troubleshooting steps.',
-  },
-  {
-    icon: <HardDrive size={14} />,
-    label: 'Disk almost full',
-    color: 'text-zinc-300',
-    prompt: 'The server disk is critically low. Give me a safe diagnostic and cleanup procedure without deleting important data.',
-  },
-  {
-    icon: <Cpu size={14} />,
-    label: 'High CPU spike',
-    color: 'text-zinc-300',
-    prompt: 'Investigate a sudden CPU spike on a Linux server. Provide commands in order and explain what each reveals.',
-  },
-  {
-    icon: <Wifi size={14} />,
-    label: 'SSH refused',
-    color: 'text-zinc-300',
-    prompt: 'SSH connections are being refused. What should I check first and what are the most common causes?',
-  },
-  {
-    icon: <Database size={14} />,
-    label: 'OOM / Memory',
-    color: 'text-zinc-300',
-    prompt: 'The server is experiencing Out-of-Memory (OOM) kills. How do I identify the memory hog and prevent recurrence?',
-  },
-  {
-    icon: <Activity size={14} />,
-    label: 'Slow response time',
-    color: 'text-zinc-300',
-    prompt: 'My web service has very slow response times. What should I measure — CPU, memory, disk I/O, or network? Where do I start?',
-  },
-];
+
 
 // ─── Status light in sidebar footer ─────────────────────────────────────────
 function AgentStatusCard({ status }) {
@@ -73,13 +35,7 @@ function AgentStatusCard({ status }) {
   );
 }
 
-export default function Sidebar({ isOpen, setIsOpen, agentStatus, onQuickPrompt, activeTab, setActiveTab, onAddServer }) {
-
-  // ── Fire a quick-prompt ─────────────────────────────────────────────────
-  const handlePrompt = (prompt) => {
-    setIsOpen(false); // close mobile sidebar
-    onQuickPrompt(prompt);
-  };
+export default function Sidebar({ isOpen, setIsOpen, agentStatus, activeTab, setActiveTab, onAddServer, sessions = [], currentSessionId, onSelectSession, onNewChat }) {
 
   return (
     <aside
@@ -132,15 +88,13 @@ export default function Sidebar({ isOpen, setIsOpen, agentStatus, onQuickPrompt,
             </h2>
             <nav className="space-y-1">
               <button
-                onClick={() => { setIsOpen(false); setActiveTab('chat'); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-300 group
-                  ${activeTab === 'chat' 
-                    ? 'bg-white/10 text-white shadow-sm' 
-                    : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                  }`}
+                onClick={onNewChat}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 group bg-white text-black hover:bg-zinc-200 shadow-md mb-2"
               >
-                <MessageSquare size={16} className={activeTab === 'chat' ? 'text-white' : 'text-zinc-500 group-hover:text-white transition-colors'} />
-                Chat
+                <div className="flex items-center gap-2">
+                  <Plus size={14} className="text-black" />
+                  New Chat
+                </div>
               </button>
 
               <button
@@ -157,33 +111,41 @@ export default function Sidebar({ isOpen, setIsOpen, agentStatus, onQuickPrompt,
             </nav>
           </section>
 
-        {/* Quick prompts */}
-        <section>
-          <h2 className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest px-2 mb-2">
-            Quick Investigations
-          </h2>
-          <div className="space-y-0.5">
-            {QUICK_PROMPTS.map((item, idx) => (
+          {/* Chat History */}
+          <section>
+            <div className="flex items-center justify-between px-2 mb-2">
+              <h2 className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
+                Chat History
+              </h2>
               <button
-                key={idx}
-                onClick={() => handlePrompt(item.prompt)}
-                className="
-                  w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm
-                  text-zinc-400 hover:text-white hover:bg-white/[0.04]
-                  border border-transparent hover:border-white/[0.05]
-                  transition-all duration-150 group text-left
-                "
+                onClick={onNewChat}
+                className="p-1 rounded-lg text-zinc-500 hover:text-white hover:bg-white/5 transition-colors"
+                title="New Chat"
               >
-                <span className={`shrink-0 ${item.color} transition-colors`}>{item.icon}</span>
-                <span className="truncate text-xs font-medium">{item.label}</span>
-                <ChevronRight
-                  size={12}
-                  className="ml-auto shrink-0 text-zinc-700 group-hover:text-zinc-400 group-hover:translate-x-0.5 transition-all"
-                />
+                <Plus size={14} />
               </button>
-            ))}
-          </div>
-        </section>
+            </div>
+            <div className="space-y-0.5">
+              {sessions.map((session) => (
+                <button
+                  key={session.sessionId}
+                  onClick={() => { setIsOpen(false); onSelectSession(session.sessionId); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 group text-left
+                    ${currentSessionId === session.sessionId
+                      ? 'bg-white/10 text-white'
+                      : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                    }`}
+                >
+                  <MessageSquare size={14} className={`shrink-0 ${currentSessionId === session.sessionId ? 'text-white' : 'text-zinc-600 group-hover:text-white transition-colors'}`} />
+                  <span className="truncate">{session.title || 'New Chat Session'}</span>
+                </button>
+              ))}
+              {sessions.length === 0 && (
+                <p className="text-[10px] text-zinc-600 px-3 py-2">No conversations yet.</p>
+              )}
+            </div>
+          </section>
+
       </div>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
@@ -191,12 +153,12 @@ export default function Sidebar({ isOpen, setIsOpen, agentStatus, onQuickPrompt,
         {/* Agent status card */}
         <AgentStatusCard status={agentStatus} />
 
-        {/* Privacy note */}
+        {/* User Info */}
         <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-zinc-950/60 border border-white/[0.04]">
-          <Shield size={12} className="text-zinc-600 mt-0.5 shrink-0" />
-          <p className="text-[10px] text-zinc-600 leading-relaxed">
-            Chat history is stored locally on this machine only.
-          </p>
+          <User size={12} className="text-zinc-600 mt-0.5 shrink-0" />
+          <div className="text-[10px] text-zinc-600 leading-relaxed overflow-hidden">
+            Logged in as <span className="font-bold text-zinc-400 truncate block">{localStorage.getItem('email') || 'Unknown User'}</span>
+          </div>
         </div>
       </div>
     </aside>

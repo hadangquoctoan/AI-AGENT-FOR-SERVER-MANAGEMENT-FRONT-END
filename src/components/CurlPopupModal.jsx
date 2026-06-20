@@ -34,7 +34,7 @@ export default function CurlPopupModal({ command, onClose }) {
       
       <div 
         ref={modalRef}
-        className="w-full max-w-2xl bg-zinc-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl relative"
+        className="w-full max-w-2xl bg-zinc-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]"
       >
         {/* Glow effect */}
         <div className="absolute -top-32 -right-32 w-64 h-64 bg-white/10 rounded-full blur-[100px] pointer-events-none" />
@@ -59,7 +59,7 @@ export default function CurlPopupModal({ command, onClose }) {
         </div>
 
         {/* Content */}
-        <div className="p-8">
+        <div className="p-8 overflow-y-auto">
           <p className="text-zinc-300 text-lg mb-6 leading-relaxed">
             To connect your server to OpsPilot and begin sending telemetry and logs, run the following command in your server's terminal:
           </p>

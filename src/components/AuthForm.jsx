@@ -57,42 +57,8 @@ export default function AuthForm({ isRegister, onSwitchMode, onLogin, onRegister
       localStorage.setItem('email', data.email);
       localStorage.setItem('userId', data.userId);
 
-      if (isRegister) {
-        // Automatically register a default server to get the install script
-        const serverRes = await fetch('/api/servers/register', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${data.token}`
-          },
-          body: JSON.stringify({
-            userId: data.userId
-          })
-        });
-
-        if (!serverRes.ok) {
-          console.warn('Server registration failed');
-          onRegisterSuccess("echo 'Failed to generate install script'");
-        } else {
-          const contentType = serverRes.headers.get('content-type') || '';
-          let cmd = '';
-          if (contentType.includes('application/json')) {
-            const serverData = await serverRes.json();
-            cmd = serverData?.installCommand || serverData?.install_command;
-          } else {
-            const text = await serverRes.text();
-            try {
-              const serverData = JSON.parse(text);
-              cmd = serverData?.installCommand || serverData?.install_command;
-            } catch {
-              cmd = text; // Raw text response
-            }
-          }
-          onRegisterSuccess(cmd || "echo 'No install command provided'");
-        }
-      } else {
-        onLogin();
-      }
+      // After successful login or registration, immediately log the user in
+      onLogin();
     } catch (err) {
       setError(err.message);
       shakeForm();
