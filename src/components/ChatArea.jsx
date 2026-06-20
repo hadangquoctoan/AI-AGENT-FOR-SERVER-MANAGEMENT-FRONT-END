@@ -63,7 +63,7 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
     const loadHistory = async () => {
       const token = localStorage.getItem('token');
       try {
-        const historyRes = await fetch(`http://localhost:8080/api/sessions/${sessionId}/history`, {
+        const historyRes = await fetch(`/api/sessions/${sessionId}/history`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (historyRes.ok) {
@@ -122,7 +122,7 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
       const userId = localStorage.getItem('userId');
       const token = localStorage.getItem('token');
       try {
-        const res = await fetch(`http://localhost:8080/api/sessions?userId=${userId}`, {
+        const res = await fetch(`/api/sessions?userId=${userId}`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
         });

@@ -262,7 +262,7 @@ export default function RegisterServerModal({ onClose, onCompleteRegistration })
                       </span>
                     </div>
                     <div className="p-5 overflow-x-auto text-sm text-green-400 break-all whitespace-pre-wrap">
-                      $ {result?.installCommand || result?.install_command || 'No command available'}
+                      {result?.installCommand || result?.install_command || 'No command available'}
                     </div>
                   </div>
                   <div className="mt-4 flex justify-end">
@@ -289,7 +289,7 @@ export default function RegisterServerModal({ onClose, onCompleteRegistration })
                       </span>
                     </div>
                     <div className="p-5 overflow-x-auto text-sm text-purple-400 break-all whitespace-pre-wrap">
-                      $ {result?.sshKeyInstruction || (result?.publicKey ? `echo "${result.publicKey}" >> ~/.ssh/authorized_keys` : "echo 'Missing Public Key' >> ~/.ssh/authorized_keys")}
+                      {result?.sshKeyInstruction || (result?.publicKey ? `echo "${result.publicKey}" >> ~/.ssh/authorized_keys` : "echo 'Missing Public Key' >> ~/.ssh/authorized_keys")}
                     </div>
                   </div>
                   <div className="mt-4 flex justify-end">

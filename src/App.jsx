@@ -43,7 +43,7 @@ function App() {
     const currentSid = localStorage.getItem('chatSessionId');
     if (!userId || !token) return;
     try {
-      const res = await fetch(`http://localhost:8080/api/sessions/user/${userId}`, {
+      const res = await fetch(`/api/sessions/user/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {

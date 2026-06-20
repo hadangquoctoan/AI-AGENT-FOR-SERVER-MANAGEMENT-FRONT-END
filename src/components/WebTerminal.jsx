@@ -83,7 +83,7 @@ const WebTerminal = forwardRef(({ serverId, onCommandOutput }, ref) => {
     try {
       const token = localStorage.getItem('token');
       // For fetch, we should use full URL if proxy isn't set, but standard is /api/...
-      const res = await fetch(`http://localhost:8080/api/ssh/execute`, {
+      const res = await fetch(`/api/ssh/execute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
