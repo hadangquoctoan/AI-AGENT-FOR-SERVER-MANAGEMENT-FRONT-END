@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   MessageSquare, LayoutDashboard, Database, Shield, Zap, CircleDot, RefreshCw,
-  Terminal, X, Plus, AlertCircle, Cpu, HardDrive, Wifi, Activity, ChevronRight, User
+  Terminal, X, Plus, AlertCircle, Cpu, HardDrive, Wifi, Activity, ChevronRight, User, LogOut
 } from 'lucide-react';
 
 
@@ -35,7 +35,7 @@ function AgentStatusCard({ status }) {
   );
 }
 
-export default function Sidebar({ isOpen, setIsOpen, agentStatus, activeTab, setActiveTab, onAddServer, sessions = [], currentSessionId, onSelectSession, onNewChat }) {
+export default function Sidebar({ isOpen, setIsOpen, agentStatus, activeTab, setActiveTab, onAddServer, sessions = [], currentSessionId, onSelectSession, onNewChat, onLogout }) {
 
   return (
     <aside
@@ -154,11 +154,23 @@ export default function Sidebar({ isOpen, setIsOpen, agentStatus, activeTab, set
         <AgentStatusCard status={agentStatus} />
 
         {/* User Info */}
-        <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-zinc-950/60 border border-white/[0.04]">
-          <User size={12} className="text-zinc-600 mt-0.5 shrink-0" />
-          <div className="text-[10px] text-zinc-600 leading-relaxed overflow-hidden">
-            Logged in as <span className="font-bold text-zinc-400 truncate block">{localStorage.getItem('email') || 'Unknown User'}</span>
+        <div className="group flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-900/40 hover:bg-zinc-900/60 border border-white/[0.04] transition-colors">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 border border-white/[0.05]">
+              <User size={13} className="text-zinc-400" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[9px] text-zinc-500 font-medium uppercase tracking-wider mb-0.5">Signed In</span>
+              <span className="text-[11px] font-bold text-zinc-300 truncate">{localStorage.getItem('email') || 'Unknown User'}</span>
+            </div>
           </div>
+          <button 
+            onClick={onLogout}
+            className="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all shrink-0 ml-2"
+            title="Log out"
+          >
+            <LogOut size={14} />
+          </button>
         </div>
       </div>
     </aside>

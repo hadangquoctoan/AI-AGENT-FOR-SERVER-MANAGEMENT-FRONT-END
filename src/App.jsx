@@ -111,6 +111,16 @@ function App() {
     setTimeout(() => fetchSessions(), 4000);
   }, [fetchSessions]);
 
+  // ── Logout ────────────────────────────────────────────────────────────
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('email');
+    localStorage.removeItem('chatSessionId');
+    setIsLoggedIn(false);
+    setAuthView('welcome');
+  }, []);
+
 
   return (
     <div className="flex h-screen w-full max-w-full overflow-x-hidden bg-[#0a0a0c] text-foreground relative font-sans">
@@ -169,6 +179,7 @@ function App() {
         currentSessionId={currentSessionId}
         onSelectSession={handleSelectSession}
         onNewChat={handleNewChat}
+        onLogout={handleLogout}
       />
 
       {/* ── Main content ───────────────────────────────────────────────── */}

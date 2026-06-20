@@ -118,19 +118,7 @@ export default function RegisterServerModal({ onClose, onCompleteRegistration })
     } catch (err) { console.error('Copy failed', err); }
   };
 
-  // Auto-transition: when promtail connects AND user copied SSH key
-  useEffect(() => {
-    if (pollingStatus === 'SUCCESS' && hasCopiedSsh) {
-      const timer = setTimeout(() => {
-        if (onCompleteRegistration && result?.agentApiKey) {
-          onCompleteRegistration(result.agentApiKey);
-        } else {
-          handleClose();
-        }
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [pollingStatus, hasCopiedSsh, result, onCompleteRegistration, handleClose]);
+  // Removed auto-transition to prevent the modal from disappearing before the user copies the SSH key
 
   // Header icon/text based on step
   const headerIcon = step === 'success' ? <Check size={20} className="text-green-400" /> :
@@ -302,8 +290,17 @@ export default function RegisterServerModal({ onClose, onCompleteRegistration })
               </div>
 
               <div className="mt-4 flex justify-end border-t border-white/10 pt-6">
-                <button onClick={handleClose} className="px-8 py-3 rounded-full bg-transparent border border-white/20 text-white font-bold hover:bg-white hover:text-black transition-colors duration-300">
-                  Done
+                <button 
+                  onClick={() => {
+                    if (pollingStatus === 'SUCCESS' && onCompleteRegistration && result?.agentApiKey) {
+                      onCompleteRegistration(result.agentApiKey);
+                    } else {
+                      handleClose();
+                    }
+                  }} 
+                  className={`px-8 py-3 rounded-full font-bold transition-colors duration-300 ${pollingStatus === 'SUCCESS' ? 'bg-green-500 text-black hover:bg-green-400' : 'bg-transparent border border-white/20 text-white hover:bg-white hover:text-black'}`}
+                >
+                  {pollingStatus === 'SUCCESS' ? 'Connect to Server' : 'Done'}
                 </button>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Terminal, Database, Server, Shield, Activity, Cpu, HardDrive } from 'lucide-react';
 import gsap from 'gsap';
+import { WaveCipher } from './lazy-ui/wave-cipher';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -77,18 +78,7 @@ export default function WelcomeScreen({ onLogin }) {
         delay: 0.6
       });
 
-      // Bento Grid Stagger on Scroll
-      gsap.from('.bento-card', {
-        scrollTrigger: {
-          trigger: bentoRef.current,
-          start: 'top 85%',
-        },
-        y: 60,
-        opacity: 0,
-        duration: 0.8,
-        stagger: 0.1,
-        ease: 'power3.out'
-      });
+      // Removed the .bento-card ScrollTrigger animation to prevent cards from getting stuck at opacity: 0
 
       // Image Scale & Fade Scroll
       gsap.to(imageRef.current, {
@@ -125,10 +115,28 @@ export default function WelcomeScreen({ onLogin }) {
   }, []);
 
   return (
-    <div ref={containerRef} className="w-full min-h-full pb-32 pt-10 px-4 md:px-12 flex flex-col items-center">
+    <div ref={containerRef} className="w-full min-h-full pb-32 pt-10 px-4 md:px-12 flex flex-col items-center relative">
       
+      {/* ── Global Background Matrix Effect ── */}
+      <div className="fixed inset-0 z-0 pointer-events-none opacity-60">
+        <WaveCipher
+          columns={20}
+          bandWidth={0.8}
+          size={16}
+          speed={1.5}
+          noisePower={1.1}
+          glyphChurn={0.1}
+          opacity={0.8}
+          color="#a1a1aa"
+          characters="0123456789ABCDEF"
+          invertColumns={true}
+        />
+        {/* Soft bottom gradient just to fade into the next section */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0a0a0c]" />
+      </div>
+
       {/* ── Attention (Hero - Editorial Split) ────────────────────────── */}
-      <section className="w-full max-w-[90rem] min-h-[85vh] flex flex-col lg:flex-row justify-between items-center relative mb-32 py-32">
+      <section className="w-full max-w-[90rem] min-h-[70vh] flex flex-col lg:flex-row justify-between items-center relative mb-16 py-16">
         
         {/* Left Side: Massive Text */}
         <div ref={heroTextRef} className="relative z-10 w-full lg:w-[65%] max-w-6xl">
@@ -136,7 +144,7 @@ export default function WelcomeScreen({ onLogin }) {
             Server
             <span 
               className="inline-block w-24 h-12 md:w-40 md:h-20 rounded-full align-middle bg-cover bg-center mx-4 grayscale opacity-90 border border-white/20" 
-              style={{backgroundImage: 'url(https://picsum.photos/seed/monochrome_server/400/200?grayscale)'}}
+              style={{backgroundImage: 'url(https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=400&q=80)'}}
             />
             Intelligence.
             <br />
@@ -145,12 +153,6 @@ export default function WelcomeScreen({ onLogin }) {
           <p className="mt-12 text-2xl text-zinc-300 max-w-2xl font-light leading-relaxed">
             Stop digging through terminal windows. Parse logs, run diagnostics, and identify anomalies instantly with precision AI.
           </p>
-          <button 
-            onClick={onLogin}
-            className="mt-12 group relative px-10 py-4 rounded-full bg-white text-black font-bold text-lg hover:scale-105 transition-all duration-500 shadow-xl shadow-white/10"
-          >
-            Enter Dashboard
-          </button>
         </div>
 
         {/* Right Side: Editorial Image with Negative Space */}
@@ -161,7 +163,7 @@ export default function WelcomeScreen({ onLogin }) {
           >
             <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-700 z-10" />
             <img 
-              src="https://picsum.photos/seed/monochrome_abstract/800/1000?grayscale" 
+              src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80" 
               alt="Datacenter Abstract" 
               className="w-full h-full object-cover grayscale contrast-125 opacity-90 scale-100 group-hover:scale-105 transition-transform duration-1000 ease-out"
             />
@@ -170,7 +172,7 @@ export default function WelcomeScreen({ onLogin }) {
       </section>
 
       {/* ── Desire (Scroll Pinning & Marquee) ───────────────────────── */}
-      <section ref={pinnedSectionRef} className="w-full max-w-7xl mb-48 flex flex-col md:flex-row gap-16 relative py-32 md:py-48">
+      <section ref={pinnedSectionRef} className="w-full max-w-7xl mb-24 flex flex-col md:flex-row gap-16 relative py-16 md:py-24">
         {/* Left Pinned Title */}
         <div className="w-full md:w-1/3">
           <div ref={pinnedTitleRef}>
@@ -202,7 +204,7 @@ export default function WelcomeScreen({ onLogin }) {
           </div>
 
           <div className="w-full h-80 rounded-3xl bg-zinc-900 border border-white/10 p-10 flex flex-col justify-between group overflow-hidden relative shadow-2xl shadow-black/50">
-            <img src="https://picsum.photos/seed/monochrome_logs/800/400?grayscale" alt="Logs" className="absolute inset-0 w-full h-full object-cover opacity-30 grayscale group-hover:scale-105 group-hover:opacity-50 transition-all duration-700 ease-out" />
+            <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80" alt="Logs" className="absolute inset-0 w-full h-full object-cover opacity-30 grayscale group-hover:scale-105 group-hover:opacity-50 transition-all duration-700 ease-out" />
             <div className="relative z-10 drop-shadow-lg">
               <Activity size={32} className="text-white mb-6" />
               <h3 className="text-2xl font-bold text-white mb-2">Real-time Parsing</h3>
@@ -213,7 +215,7 @@ export default function WelcomeScreen({ onLogin }) {
       </section>
 
       {/* ── Interest (Gapless Bento Grid) ───────────────────────────── */}
-      <section ref={bentoRef} className="w-full max-w-6xl mb-32 z-10 py-32 md:py-48">
+      <section ref={bentoRef} className="w-full max-w-6xl mb-24 z-10 py-16 md:py-24">
         <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight mb-16 text-center">Diagnostic Workflows</h2>
         <div className="grid grid-cols-1 sm:grid-cols-4 grid-flow-dense gap-4 md:gap-6 auto-rows-[200px]">
           {STARTER_CARDS.map((card) => (
