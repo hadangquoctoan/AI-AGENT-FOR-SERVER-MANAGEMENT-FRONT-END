@@ -4,6 +4,7 @@ import ChatArea from './components/ChatArea';
 import ServerDashboard from './components/ServerDashboard';
 import WelcomeScreen from './components/WelcomeScreen';
 import AuthPage from './components/AuthPage';
+import { ChromaFlow } from './components/lazy-ui/chroma-flow';
 
 function App() {
   const [activeTab, setActiveTab]       = useState('dashboard');
@@ -184,8 +185,19 @@ function App() {
 
       {/* ── Main content ───────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col w-full max-w-full overflow-x-hidden relative z-10">
-
-        <div className="flex-1 relative w-full h-full">
+        <ChromaFlow
+          palette="silver"
+          speed={0.2}
+          density={23}
+          flow={1}
+          glow={0.05}
+          vignette={0.8}
+          grain={0.045}
+          mouseInfluence={0.1}
+          mouseFollow={true}
+          className="flex-1 w-full h-full"
+        >
+          <div className="flex-1 relative w-full h-full">
           {/* Full Screen Chat Tab */}
           <div
             className={`absolute inset-0 transition-opacity duration-500 ${
@@ -210,6 +222,7 @@ function App() {
             {activeTab === 'dashboard' && <ServerDashboard />}
           </div>
         </div>
+        </ChromaFlow>
       </main>
         </>
       )}

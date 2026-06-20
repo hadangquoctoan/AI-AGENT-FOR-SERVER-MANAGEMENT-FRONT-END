@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { ArrowLeft, Activity, Shield } from 'lucide-react';
 import AuthForm from './AuthForm';
 import CurlPopupModal from './CurlPopupModal';
+import { WaveCipher } from './lazy-ui/wave-cipher';
 
 export default function AuthPage({ onLogin, onBack }) {
   const [isRegister, setIsRegister] = useState(false);
@@ -70,8 +71,22 @@ export default function AuthPage({ onLogin, onBack }) {
   };
 
   return (
-    <div ref={containerRef} className="w-full h-full min-h-screen bg-[#0a0a0c] flex overflow-hidden font-sans">
-      
+    <div ref={containerRef} className="w-full h-full min-h-screen bg-[#0a0a0c] flex overflow-hidden font-sans relative">
+      <div className="absolute inset-0 z-0 opacity-40 pointer-events-none">
+        <WaveCipher
+          columns={9}
+          bandWidth={0.8}
+          size={12}
+          speed={2.5}
+          noisePower={1.1}
+          glyphChurn={0}
+          opacity={1}
+          color="#d4d4d4"
+          characters="0123456789ABCDEF"
+          invertColumns={true}
+        />
+      </div>
+
       {/* ── Editorial Split: Left Column (Form) ───────────────────────── */}
       <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 sm:px-16 md:px-24 xl:px-32 relative z-10">
         
@@ -113,9 +128,9 @@ export default function AuthPage({ onLogin, onBack }) {
           
           <img 
             ref={imageRef}
-            src="https://picsum.photos/seed/server_architecture/1920/1080?grayscale" 
+            src="/images/tech_auth_bg.png" 
             alt="Server Infrastructure" 
-            className="w-full h-full object-cover grayscale contrast-125 opacity-80"
+            className="w-full h-full object-cover opacity-90"
           />
 
           {/* Overlaid Typography & Component Array */}
@@ -124,7 +139,7 @@ export default function AuthPage({ onLogin, onBack }) {
               Unify your
               <span 
                 className="inline-block w-20 h-10 rounded-full align-middle bg-cover bg-center mx-3 border border-white/20 shadow-lg"
-                style={{backgroundImage: 'url(https://picsum.photos/seed/data/200/100?grayscale)'}}
+                style={{backgroundImage: 'url(/images/tech_inline_bg.png)'}}
               />
               infrastructure.
             </h2>

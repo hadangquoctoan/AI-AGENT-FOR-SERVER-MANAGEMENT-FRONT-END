@@ -4,6 +4,7 @@ import { Server, Plus, Loader2, Check, Terminal, Copy, AlertCircle, ArrowLeft, A
 import ChatArea from './ChatArea';
 import RegisterServerModal from './RegisterServerModal';
 import WebTerminal from './WebTerminal';
+import { BorderGlow } from './lazy-ui/border-glow';
 
 const ServerMetricsCard = ({ server }) => {
   const [metrics, setMetrics] = useState({
@@ -342,13 +343,26 @@ const ServerMetricsCard = ({ server }) => {
           </div>
         ) : (
           servers.filter(s => s.status === 'SUCCESS').map(server => (
-            <div 
+            <BorderGlow 
               key={server.serverId} 
+              mode="auto"
+              palette="aurora"
+              thickness={1.5}
+              radius={24}
+              coneSpread={22}
+              glowSize={16}
+              intensity={0.8}
+              speed={1}
+              cursorRadius={120}
+              sparkleCount={14}
+              bling={true}
+              background="rgba(24, 24, 27, 0.7)"
               onClick={() => setSelectedServer(server)}
-              className="bg-zinc-900 border border-white/10 p-6 rounded-3xl hover:border-white/30 hover:bg-zinc-800 transition-all cursor-pointer group shadow-lg"
+              className="transition-all cursor-pointer group shadow-lg"
             >
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3">
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${server.status === 'SUCCESS' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]'}`} />
                   <h3 className="font-bold text-lg text-white group-hover:text-blue-400 transition-colors">
                     {server.hostname !== 'Unknown' ? server.hostname : 'Unnamed Node'}
@@ -380,7 +394,8 @@ const ServerMetricsCard = ({ server }) => {
                   <Activity size={14} className="mr-2" /> Logs
                 </button>
               </div>
-            </div>
+              </div>
+            </BorderGlow>
           ))
         )}
       </div>
