@@ -123,6 +123,25 @@ function App() {
   }, []);
 
 
+  // ── Delete a session ──────────────────────────────────────────────────
+  const handleDeleteSession = useCallback(async (e, sessionIdToDelete) => {
+    e.stopPropagation();
+    const token = localStorage.getItem('token');
+    try {
+      await fetch(`/api/sessions/${sessionIdToDelete}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (currentSessionId === sessionIdToDelete) {
+        handleNewChat();
+      }
+      fetchSessions();
+    } catch (err) {
+      console.warn("Failed to delete session", err);
+    }
+  }, [currentSessionId, handleNewChat, fetchSessions]);
+
+
   return (
     <div className="flex h-screen w-full max-w-full overflow-x-hidden bg-[#0a0a0c] text-foreground relative font-sans">
       {/* Ambient background glow */}
@@ -181,6 +200,7 @@ function App() {
         onSelectSession={handleSelectSession}
         onNewChat={handleNewChat}
         onLogout={handleLogout}
+        onDeleteSession={handleDeleteSession}
       />
 
       {/* ── Main content ───────────────────────────────────────────────── */}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   MessageSquare, LayoutDashboard, Database, Shield, Zap, CircleDot, RefreshCw,
-  Terminal, X, Plus, AlertCircle, Cpu, HardDrive, Wifi, Activity, ChevronRight, User, LogOut
+  Terminal, X, Plus, AlertCircle, Cpu, HardDrive, Wifi, Activity, ChevronRight, User, LogOut, Trash2
 } from 'lucide-react';
 
 
@@ -35,7 +35,7 @@ function AgentStatusCard({ status }) {
   );
 }
 
-export default function Sidebar({ isOpen, setIsOpen, agentStatus, activeTab, setActiveTab, onAddServer, sessions = [], currentSessionId, onSelectSession, onNewChat, onLogout }) {
+export default function Sidebar({ isOpen, setIsOpen, agentStatus, activeTab, setActiveTab, onAddServer, sessions = [], currentSessionId, onSelectSession, onNewChat, onLogout, onDeleteSession }) {
 
   return (
     <aside
@@ -127,18 +127,28 @@ export default function Sidebar({ isOpen, setIsOpen, agentStatus, activeTab, set
             </div>
             <div className="space-y-0.5">
               {sessions.map((session) => (
-                <button
-                  key={session.sessionId}
-                  onClick={() => { setIsOpen(false); onSelectSession(session.sessionId); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 group text-left
-                    ${currentSessionId === session.sessionId
-                      ? 'bg-white/10 text-white'
-                      : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                    }`}
-                >
-                  <MessageSquare size={14} className={`shrink-0 ${currentSessionId === session.sessionId ? 'text-white' : 'text-zinc-600 group-hover:text-white transition-colors'}`} />
-                  <span className="truncate">{session.title || 'New Chat Session'}</span>
-                </button>
+                <div key={session.sessionId} className={`w-full flex items-center justify-between px-1 py-1 rounded-xl transition-all duration-200 group ${currentSessionId === session.sessionId ? 'bg-white/10' : 'hover:bg-white/5'}`}>
+                  <button
+                    onClick={() => { setIsOpen(false); onSelectSession(session.sessionId); }}
+                    className={`flex-1 flex items-center gap-3 px-2 py-1.5 text-xs font-medium truncate text-left
+                      ${currentSessionId === session.sessionId
+                        ? 'text-white'
+                        : 'text-zinc-400 hover:text-white'
+                      }`}
+                  >
+                    <MessageSquare size={14} className={`shrink-0 ${currentSessionId === session.sessionId ? 'text-white' : 'text-zinc-600 group-hover:text-white transition-colors'}`} />
+                    <span className="truncate">{session.title || 'New Chat Session'}</span>
+                  </button>
+                  {onDeleteSession && (
+                    <button
+                      onClick={(e) => onDeleteSession(e, session.sessionId)}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 mr-1 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                      title="Delete Chat"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               ))}
               {sessions.length === 0 && (
                 <p className="text-[10px] text-zinc-600 px-3 py-2">No conversations yet.</p>

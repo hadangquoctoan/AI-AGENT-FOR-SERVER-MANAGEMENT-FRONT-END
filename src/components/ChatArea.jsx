@@ -49,6 +49,8 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
   const messagesEndRef   = useRef(null);
   const scrollAreaRef    = useRef(null);
   const textareaRef      = useRef(null);
+  const lastQueryRef     = useRef('');
+  const skipHistoryLoadRef = useRef(false);
 
   // Resolve session ID: prop > localStorage fallback
   const sessionId = propSessionId || localStorage.getItem('chatSessionId');
@@ -60,6 +62,11 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
       return;
     }
 
+    if (skipHistoryLoadRef.current) {
+      skipHistoryLoadRef.current = false;
+      return;
+    }
+
     const loadHistory = async () => {
       const token = localStorage.getItem('token');
       try {
@@ -68,10 +75,17 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
         });
         if (historyRes.ok) {
           const data = await historyRes.json();
-          const mapped = data.map(msg => ({
-            role: (msg.role || '').toLowerCase() === 'ai' ? 'agent' : 'user',
-            content: msg.content
-          }));
+          const mapped = data.map(msg => {
+            const rawRole = (msg.role || '').toLowerCase();
+            let mappedRole = 'user';
+            if (rawRole === 'ai' || rawRole === 'assistant') mappedRole = 'agent';
+            else if (rawRole === 'tool_call' || rawRole === 'tool_result') mappedRole = 'system_result';
+            
+            return {
+              role: mappedRole,
+              content: msg.content
+            };
+          });
           setMessages(mapped);
         } else {
           setMessages([]);
@@ -111,9 +125,30 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
   }, [input]);
 
   // ── Core send function ─────────────────────────────────────────────────────
-  const sendMessage = useCallback(async (queryOverride) => {
-    const query = (queryOverride ?? input).trim();
-    if (!query || isGenerating) return;
+  const sendMessage = useCallback(async (options = {}) => {
+    let queryToUse = '';
+    let toolResult = null;
+    let toolRejected = false;
+    let toolName = null;
+    let toolArgs = null;
+
+    if (typeof options === 'string') {
+      queryToUse = options;
+    } else {
+      queryToUse = options.queryOverride !== undefined ? options.queryOverride : input;
+      toolResult = options.toolResult || null;
+      toolRejected = options.toolRejected || false;
+      toolName = options.toolName || null;
+      toolArgs = options.toolArgs || null;
+    }
+
+    const query = queryToUse.trim();
+    if (!query && !toolResult && !toolRejected) return;
+    if (isGenerating && !toolResult && !toolRejected) return;
+
+    if (!toolResult && !toolRejected) {
+      lastQueryRef.current = query; // Save for tool resubmission
+    }
 
     let activeSessionId = sessionId;
 
@@ -129,7 +164,40 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
         if (res.ok) {
           activeSessionId = await res.text();
           localStorage.setItem('chatSessionId', activeSessionId);
-          if (onSessionCreated) onSessionCreated(activeSessionId);
+
+          // Cập nhật tên đoạn chat bằng AI
+          try {
+            const titleRes = await fetch('/api/generate_title', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ query: query })
+            });
+            
+            let newTitle = "New Chat";
+            if (titleRes.ok) {
+              const titleData = await titleRes.json();
+              newTitle = titleData.title;
+            } else {
+              const firstLine = query.trim().split('\n')[0];
+              newTitle = firstLine.length > 35 ? firstLine.slice(0, 35) + '...' : firstLine;
+            }
+
+            await fetch(`/api/sessions/${activeSessionId}/title`, {
+              method: 'PUT',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+              },
+              body: JSON.stringify({ title: newTitle })
+            });
+          } catch (e) {
+            console.warn('Failed to set session title:', e);
+          }
+
+          if (onSessionCreated) {
+            skipHistoryLoadRef.current = true;
+            onSessionCreated(activeSessionId);
+          }
         } else {
           throw new Error('Failed to create session');
         }
@@ -144,11 +212,20 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
     }
 
     setInput('');
-    setMessages((prev) => [
-      ...prev,
-      { role: 'user',  content: query },
-      { role: 'agent', content: '' },
-    ]);
+    if (!toolResult && !toolRejected) {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user',  content: query },
+        { role: 'agent', content: '' },
+      ]);
+    } else {
+      // If it's a tool response, we just append an empty agent message to catch the new stream
+      setMessages((prev) => [
+        ...prev,
+        { role: 'agent', content: '' },
+      ]);
+    }
+    
     setIsGenerating(true);
     setShowScrollBtn(false);
     scrollToBottom('auto');
@@ -158,9 +235,13 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          query, 
+          query: query || lastQueryRef.current, 
           session_id: activeSessionId,
-          auth_token: localStorage.getItem('token')
+          auth_token: localStorage.getItem('token'),
+          tool_result: toolResult,
+          tool_rejected: toolRejected,
+          tool_name: toolName,
+          tool_args: toolArgs ? JSON.stringify(toolArgs) : null
         }),
       });
 
@@ -189,11 +270,28 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
           try {
             const data = JSON.parse(raw);
 
-            if (data.chunk !== undefined) {
+            if (data.type === 'tool_proposal') {
+               setMessages((prev) => {
+                 const updated = [...prev];
+                 const last = updated[updated.length - 1];
+                 updated[updated.length - 1] = { 
+                   ...last, 
+                   toolProposal: {
+                     command: data.command || data.tool_name,
+                     ...data,
+                     handled: false
+                   }
+                 };
+                 return updated;
+               });
+            } else if (data.type === 'status') {
+              setAnalyzingMessage(data.content);
+            } else if (data.chunk !== undefined || data.type === 'message') {
+              setAnalyzingMessage(''); // Clear analyzing message when model starts typing
               setMessages((prev) => {
                 const updated = [...prev];
                 const last = updated[updated.length - 1];
-                updated[updated.length - 1] = { ...last, content: last.content + data.chunk };
+                updated[updated.length - 1] = { ...last, content: last.content + (data.content || data.chunk || '') };
                 return updated;
               });
             }
@@ -300,6 +398,77 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
     }
   }));
 
+  const handleConfirmTool = useCallback(async (msgIdx) => {
+    const msg = messages[msgIdx];
+    const proposal = msg.toolProposal;
+    const command = proposal.command;
+    const args = proposal.arguments || {};
+    const serverId = args.server_id || args.serverId || args.server_ip || localStorage.getItem('selectedServerId');
+    
+    setMessages(prev => {
+      const updated = [...prev];
+      updated[msgIdx] = { ...updated[msgIdx], toolProposal: { ...updated[msgIdx].toolProposal, handled: true, loading: true } };
+      return updated;
+    });
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/servers/${serverId}/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ command })
+      });
+      
+      const resultText = await res.text();
+      
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[msgIdx] = { ...updated[msgIdx], toolProposal: { ...updated[msgIdx].toolProposal, loading: false } };
+        return updated;
+      });
+
+      sendMessage({
+        queryOverride: lastQueryRef.current,
+        toolResult: resultText,
+        toolRejected: false,
+        toolName: proposal.tool_name || proposal.command,
+        toolArgs: args
+      });
+
+    } catch (e) {
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[msgIdx] = { ...updated[msgIdx], toolProposal: { ...updated[msgIdx].toolProposal, loading: false } };
+        return updated;
+      });
+      sendMessage({
+        queryOverride: lastQueryRef.current,
+        toolResult: "Lỗi khi gọi API: " + e.message,
+        toolRejected: false,
+        toolName: proposal.tool_name || proposal.command,
+        toolArgs: args
+      });
+    }
+  }, [messages, sendMessage]);
+
+  const handleRejectTool = useCallback((msgIdx) => {
+    const msg = messages[msgIdx];
+    setMessages(prev => {
+      const updated = [...prev];
+      updated[msgIdx] = { ...updated[msgIdx], toolProposal: { ...updated[msgIdx].toolProposal, handled: true } };
+      return updated;
+    });
+    sendMessage({
+      queryOverride: lastQueryRef.current,
+      toolResult: null,
+      toolRejected: true,
+      toolName: msg.toolProposal?.tool_name || msg.toolProposal?.command,
+      toolArgs: msg.toolProposal?.arguments
+    });
+  }, [messages, sendMessage]);
 
 
   const handleKeyDown = (e) => {
@@ -397,9 +566,34 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
                               </ReactMarkdown>
                             </div>
                           ) : (
-                            <TypingDots />
+                            !msg.toolProposal && <TypingDots />
                           )}
                         </div>
+                        {msg.toolProposal && !msg.toolProposal.handled && (
+                          <div className="mt-3 bg-zinc-800/80 border border-zinc-700 rounded-xl p-4 shadow-xl min-w-[300px]">
+                            <div className="flex items-center gap-2 text-zinc-300 font-medium mb-2">
+                               <TerminalSquare size={16} className="text-yellow-400" />
+                               Yêu cầu thực thi lệnh SSH
+                            </div>
+                            <pre className="p-3 bg-black/60 rounded-lg text-sm font-mono text-zinc-300 mb-4 whitespace-pre-wrap">
+                               {msg.toolProposal.command}
+                            </pre>
+                            <div className="flex gap-3">
+                               <button 
+                                 onClick={() => handleConfirmTool(idx)}
+                                 className="flex-1 bg-white text-black font-semibold py-2 rounded-lg hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
+                               >
+                                 <Check size={16} /> Xác nhận
+                               </button>
+                               <button 
+                                 onClick={() => handleRejectTool(idx)}
+                                 className="flex-1 bg-zinc-700 text-white font-semibold py-2 rounded-lg hover:bg-zinc-600 transition-colors flex items-center justify-center gap-2"
+                               >
+                                 <X size={16} /> Hủy
+                               </button>
+                            </div>
+                          </div>
+                        )}
                         {msg.content && !isStream && (
                           <div className="flex mt-1.5">
                             <CopyButton text={msg.content} />
