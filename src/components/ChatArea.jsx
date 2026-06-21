@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { Send, Bot, User, Copy, Check, Sparkles, ChevronDown, Play, X, TerminalSquare } from 'lucide-react';
+import { Send, Bot, User, Copy, Check, Sparkles, ChevronDown, Play, X, TerminalSquare, Loader2, Cpu } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 // ─── Utility: copy to clipboard ─────────────────────────────────────────────
@@ -39,12 +39,13 @@ function TypingDots() {
   );
 }
 
-// ─── ChatArea (main component) ───────────────────────────────────────────────
-const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, onSessionCreated, onExecuteCommand }, ref) => {
+const ChatArea = forwardRef(({ sessionId: propSessionId, serverId: propServerId, compact, onChatDone, onSessionCreated, onExecuteCommand, onWriteToTerminal, onWriteRawToTerminal, onWritePromptToTerminal, onThinking, onToolProposal, onApproveTool, onRejectTool, chatMode = 'GENERAL' }, ref) => {
   const [input, setInput]           = useState('');
   const [messages, setMessages]     = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [terminalSessionId, setTerminalSessionId] = useState(null);
+  const [analyzingMessage, setAnalyzingMessage] = useState('');
 
   const messagesEndRef   = useRef(null);
   const scrollAreaRef    = useRef(null);
@@ -52,8 +53,16 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
   const lastQueryRef     = useRef('');
   const skipHistoryLoadRef = useRef(false);
 
-  // Resolve session ID: prop > localStorage fallback
-  const sessionId = propSessionId || localStorage.getItem('chatSessionId');
+  // Reset terminal session when serverId changes
+  useEffect(() => {
+    if (compact) {
+      setTerminalSessionId(null);
+      setMessages([]);
+    }
+  }, [propServerId, compact]);
+
+  // Resolve session ID: prop > state (if compact) > localStorage fallback
+  const sessionId = propSessionId || (compact ? terminalSessionId : localStorage.getItem('chatSessionId'));
 
   // ── Load history when session changes ─────────────────────────────────
   useEffect(() => {
@@ -89,6 +98,13 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
           setMessages(mapped);
         } else {
           setMessages([]);
+          if (historyRes.status === 404 || historyRes.status === 400 || historyRes.status === 500) {
+            if (!compact && !propSessionId && sessionId === localStorage.getItem('chatSessionId')) {
+              localStorage.removeItem('chatSessionId');
+            } else if (compact && !propSessionId && sessionId === terminalSessionId) {
+              setTerminalSessionId(null);
+            }
+          }
         }
       } catch (e) {
         console.warn('History load skipped:', e.message);
@@ -157,13 +173,21 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
       const userId = localStorage.getItem('userId');
       const token = localStorage.getItem('token');
       try {
-        const res = await fetch(`/api/sessions?userId=${userId}`, {
+        let url = `/api/sessions?userId=${userId}`;
+        if (compact && propServerId) {
+          url += `&chatType=TERMINAL&serverId=${propServerId}`;
+        }
+        const res = await fetch(url, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
           activeSessionId = await res.text();
-          localStorage.setItem('chatSessionId', activeSessionId);
+          if (!compact) {
+            localStorage.setItem('chatSessionId', activeSessionId);
+          } else {
+            setTerminalSessionId(activeSessionId);
+          }
 
           // Cập nhật tên đoạn chat bằng AI
           try {
@@ -230,6 +254,10 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
     setShowScrollBtn(false);
     scrollToBottom('auto');
 
+    if (compact && onWriteToTerminal && !toolResult && !toolRejected) {
+      onWriteToTerminal(`\x1b[36mUser>\x1b[0m ${query}`);
+    }
+
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -238,6 +266,7 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
           query: query || lastQueryRef.current, 
           session_id: activeSessionId,
           auth_token: localStorage.getItem('token'),
+          chat_type: compact ? "TERMINAL" : "GENERAL",
           tool_result: toolResult,
           tool_rejected: toolRejected,
           tool_name: toolName,
@@ -271,22 +300,33 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
             const data = JSON.parse(raw);
 
             if (data.type === 'tool_proposal') {
+               const proposal = {
+                 command: data.command || data.tool_name,
+                 ...data,
+                 handled: false
+               };
                setMessages((prev) => {
                  const updated = [...prev];
                  const last = updated[updated.length - 1];
-                 updated[updated.length - 1] = { 
-                   ...last, 
-                   toolProposal: {
-                     command: data.command || data.tool_name,
-                     ...data,
-                     handled: false
-                   }
+                 updated[updated.length - 1] = {
+                   ...last,
+                   toolProposal: proposal
                  };
                  return updated;
                });
+               if (onToolProposal) onToolProposal(proposal);
+            } else if (data.type === 'thinking') {
+              setAnalyzingMessage(data.detail || data.step);
+              if (onThinking) onThinking(data);
+              if (compact && onWriteToTerminal) {
+                 onWriteToTerminal(`\x1b[36m[BOT]\x1b[0m \x1b[33m${data.detail || data.step}\x1b[0m`);
+              }
             } else if (data.type === 'status') {
               setAnalyzingMessage(data.content);
-            } else if (data.chunk !== undefined || data.type === 'message') {
+              if (compact && onWriteToTerminal) {
+                 onWriteToTerminal(`\x1b[33m[SYSTEM]\x1b[0m ${data.content}`);
+              }
+            } else if (data.chunk !== undefined || data.type === 'message_chunk' || data.type === 'message') {
               setAnalyzingMessage(''); // Clear analyzing message when model starts typing
               setMessages((prev) => {
                 const updated = [...prev];
@@ -297,6 +337,10 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
             }
             if (data.done) {
               setIsGenerating(false);
+              if (compact && onWriteToTerminal) {
+                 onWriteToTerminal(`\x1b[90m[Phiên làm việc hoàn tất]\x1b[0m`);
+                 if (onWritePromptToTerminal) onWritePromptToTerminal();
+              }
               if (onChatDone) onChatDone();
             }
             if (data.error) {
@@ -310,6 +354,10 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
                 return updated;
               });
               setIsGenerating(false);
+              if (compact && onWriteToTerminal) {
+                 onWriteToTerminal(`\x1b[31m[LỖI]\x1b[0m ${data.error}`);
+                 if (onWritePromptToTerminal) onWritePromptToTerminal();
+              }
             }
           } catch (parseErr) {
             console.warn('SSE parse error:', parseErr, raw);
@@ -333,7 +381,7 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
     sendSystemResult: async (cmd, output) => {
-      const activeSessionId = sessionId || localStorage.getItem('chatSessionId');
+      const activeSessionId = sessionId || (!compact ? localStorage.getItem('chatSessionId') : null);
       if (!activeSessionId || isGenerating) return;
 
       const hiddenPrompt = `Đây là kết quả lệnh mày vừa chạy (${cmd}), phân tích đi:\n\`\`\`\n${output}\n\`\`\``;
@@ -395,8 +443,24 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
       } catch (err) {
         setIsGenerating(false);
       }
+    },
+    approveTool: (proposal) => {
+      const msgIdx = messages.findIndex(
+        (m) => m.toolProposal && !m.toolProposal.handled && m.toolProposal.command === proposal.command
+      );
+      if (msgIdx !== -1) {
+        handleConfirmTool(msgIdx);
+      }
+    },
+    rejectTool: (proposal) => {
+      const msgIdx = messages.findIndex(
+        (m) => m.toolProposal && !m.toolProposal.handled && m.toolProposal.command === proposal.command
+      );
+      if (msgIdx !== -1) {
+        handleRejectTool(msgIdx);
+      }
     }
-  }));
+  }), [messages, sendMessage]);
 
   const handleConfirmTool = useCallback(async (msgIdx) => {
     const msg = messages[msgIdx];
@@ -413,17 +477,23 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/servers/${serverId}/execute`, {
+      const sId = propServerId || serverId;
+      const res = await fetch(`/api/ssh/execute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ command })
+        body: JSON.stringify({ serverId: sId, command })
       });
       
-      const resultText = await res.text();
+      const data = await res.json();
+      const terminalOutput = data.output || data.error || "Command executed with no output.";
       
+      if (onWriteToTerminal) {
+        onWriteToTerminal(`$ ${command}\n${terminalOutput}`);
+      }
+
       setMessages(prev => {
         const updated = [...prev];
         updated[msgIdx] = { ...updated[msgIdx], toolProposal: { ...updated[msgIdx].toolProposal, loading: false } };
@@ -431,11 +501,11 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
       });
 
       sendMessage({
-        queryOverride: lastQueryRef.current,
-        toolResult: resultText,
+        queryOverride: "",
+        toolResult: terminalOutput,
         toolRejected: false,
         toolName: proposal.tool_name || proposal.command,
-        toolArgs: args
+        toolArgs: { command }
       });
 
     } catch (e) {
@@ -462,11 +532,11 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
       return updated;
     });
     sendMessage({
-      queryOverride: lastQueryRef.current,
+      queryOverride: "",
       toolResult: null,
       toolRejected: true,
       toolName: msg.toolProposal?.tool_name || msg.toolProposal?.command,
-      toolArgs: msg.toolProposal?.arguments
+      toolArgs: { command: msg.toolProposal?.command }
     });
   }, [messages, sendMessage]);
 
@@ -481,6 +551,14 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full min-h-0 cyber-grid">
+      {/* Mode indicator for TERMINAL */}
+      {chatMode === 'TERMINAL' && (
+        <div className="shrink-0 px-4 pt-4 pb-2 flex items-center gap-2 border-b border-white/5">
+          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          <span className="text-xs font-bold text-green-400 uppercase tracking-wider">Terminal Mode</span>
+          <span className="text-xs text-zinc-500">— AI will execute commands on your server</span>
+        </div>
+      )}
       {/* ── Messages list ───────────────────────────────────────────────── */}
       <div
         id="welcome-scroll-container"
@@ -494,13 +572,26 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
             <div className={`${compact ? 'w-12 h-12 rounded-2xl mb-4' : 'w-16 h-16 md:w-20 md:h-20 rounded-3xl mb-8'} bg-white flex items-center justify-center shadow-2xl shadow-white/10`}>
               <Bot size={compact ? 24 : 40} className="text-black" />
             </div>
-            <h2 className={`${compact ? 'text-xl' : 'text-3xl md:text-4xl'} font-bold text-white mb-2 md:mb-4 tracking-tight text-center`}>
-              How can I help?
-            </h2>
-            {!compact && (
-              <p className="text-zinc-400 text-lg text-center max-w-md">
-                Ask about server diagnostics, log analysis, or infrastructure health.
-              </p>
+            {chatMode === 'TERMINAL' ? (
+              <>
+                <h2 className={`${compact ? 'text-xl' : 'text-3xl md:text-4xl'} font-bold text-white mb-2 md:mb-4 tracking-tight text-center`}>
+                  AI Terminal Assistant
+                </h2>
+                <p className="text-zinc-400 text-base text-center max-w-md">
+                  Describe what you want to do — I'll generate and execute the commands for you.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className={`${compact ? 'text-xl' : 'text-3xl md:text-4xl'} font-bold text-white mb-2 md:mb-4 tracking-tight text-center`}>
+                  How can I help?
+                </h2>
+                {!compact && (
+                  <p className="text-zinc-400 text-lg text-center max-w-md">
+                    Ask about server diagnostics, log analysis, or infrastructure health.
+                  </p>
+                )}
+              </>
             )}
           </div>
         ) : (
@@ -525,7 +616,23 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
                   <div className={`group flex flex-col max-w-[82%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                     {msg.role === 'agent' ? (
                       <>
-                        <div className={`agent-bubble ${isStream && !msg.content ? '' : ''}`}>
+                        <div className={`agent-bubble ${chatMode === 'TERMINAL' ? 'agent-bubble-terminal' : ''} ${isStream && !msg.content ? '' : ''}`}>
+                          {/* Show thinking/analyzing status */}
+                          {(isGenerating || analyzingMessage) && !msg.content && !msg.toolProposal && (
+                            <div className="flex flex-col gap-2 animate-fade-in">
+                              <div className="flex items-center gap-2 text-blue-400 text-sm font-medium">
+                                <Cpu size={14} className="animate-pulse" />
+                                <span>AI is thinking...</span>
+                              </div>
+                              {analyzingMessage && (
+                                <div className="flex items-center gap-2 text-zinc-400 text-xs italic">
+                                  <Loader2 size={12} className="animate-spin" />
+                                  <span>{analyzingMessage}</span>
+                                </div>
+                              )}
+                              <TypingDots />
+                            </div>
+                          )}
                           {msg.content ? (
                             <div className={isStream ? 'cursor-blink' : ''}>
                               <ReactMarkdown
@@ -665,7 +772,7 @@ const ChatArea = forwardRef(({ sessionId: propSessionId, compact, onChatDone, on
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isGenerating}
-              placeholder="Ask a question..."
+              placeholder={chatMode === 'TERMINAL' ? "Describe what you want me to do on the server..." : "Ask a question..."}
               className={`
                 w-full bg-transparent border-none text-white placeholder-zinc-400
                 ${compact ? 'text-sm px-4 pt-4 pb-1 min-h-[56px] max-h-[120px]' : 'text-base md:text-lg px-6 pt-6 pb-2 min-h-[72px] max-h-[240px]'} 

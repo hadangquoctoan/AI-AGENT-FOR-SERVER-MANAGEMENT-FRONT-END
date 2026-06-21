@@ -4,24 +4,46 @@ import ChatArea from './components/ChatArea';
 import ServerDashboard from './components/ServerDashboard';
 import WelcomeScreen from './components/WelcomeScreen';
 import AuthPage from './components/AuthPage';
-import { ChromaFlow } from './components/lazy-ui/chroma-flow';
 
 function App() {
-  const [activeTab, setActiveTab]       = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [agentStatus, setAgentStatus]   = useState({ status: 'starting', message: 'Checking agent...' });
-  const [isLoggedIn, setIsLoggedIn]     = useState(false);
-  const [authView, setAuthView]         = useState('welcome');
+  const [agentStatus, setAgentStatus]     = useState({ status: 'starting', message: 'Checking agent...' });
+  const [isLoggedIn, setIsLoggedIn]       = useState(false);
+  const [authView, setAuthView]           = useState('welcome');
 
-  // ── Session management ────────────────────────────────────────────────
-  const [sessions, setSessions]             = useState([]);
-  const [currentSessionId, setCurrentSessionId] = useState(() => localStorage.getItem('chatSessionId'));
+  const [chatMode, setChatMode] = useState('GENERAL');
 
+  const [allSessions, setAllSessions] = useState([]);
 
-  // ── Poll /api/status every 10s ──────────────────────────────────────────
+  const generalSessions = allSessions.filter(
+    (s) => !s.chatType || s.chatType === 'GENERAL'
+  );
+
+  const terminalSessions = allSessions.filter(
+    (s) => s.chatType === 'TERMINAL'
+  );
+
+  const [servers, setServers] = useState([]);
+
+  const fetchServers = useCallback(async () => {
+    const userId = localStorage.getItem('userId');
+    const token  = localStorage.getItem('token');
+    if (!userId || !token) return;
+    try {
+      const res = await fetch(`/api/servers/user/${userId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setServers(data);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch servers:', e.message);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-
     const checkStatus = async () => {
       try {
         const res  = await fetch('/api/status');
@@ -31,88 +53,97 @@ function App() {
         if (!cancelled) setAgentStatus({ status: 'error', message: 'Backend unreachable' });
       }
     };
-
     checkStatus();
     const id = setInterval(checkStatus, 10_000);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  // ── Fetch chat sessions list ───────────────────────────────────────────
   const fetchSessions = useCallback(async () => {
     const userId = localStorage.getItem('userId');
     const token  = localStorage.getItem('token');
-    const currentSid = localStorage.getItem('chatSessionId');
     if (!userId || !token) return;
     try {
       const res = await fetch(`/api/sessions/user/${userId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
       });
       if (res.ok) {
         let data = await res.json();
-        
-        // Normalize id to sessionId just in case the backend uses 'id'
-        data = data.map(s => ({ ...s, sessionId: s.sessionId || s.id }));
-
-        // If the backend is slow to return the newly created session, keep it in the UI artificially
-        if (currentSid && !data.find(s => s.sessionId === currentSid)) {
-          setSessions(prev => {
-            const existing = prev.find(s => s.sessionId === currentSid);
-            return [{ 
-              sessionId: currentSid, 
-              title: existing?.title || 'New Chat Session' 
-            }, ...data];
-          });
-        } else {
-          setSessions(data);
-        }
+        data = data.map((s) => ({ ...s, sessionId: s.sessionId || s.id }));
+        setAllSessions(data);
       }
     } catch (e) {
       console.warn('Failed to fetch sessions:', e.message);
     }
   }, []);
 
-  // ── Initialize session & load list on login ───────────────────────────
   useEffect(() => {
     if (!isLoggedIn) return;
-    const init = async () => {
-      const sid = localStorage.getItem('chatSessionId');
-      if (sid) {
-        setCurrentSessionId(sid);
-      } else {
-        setCurrentSessionId(null);
-      }
-      fetchSessions();
-    };
-    init();
-  }, [isLoggedIn, fetchSessions]);
+    const sid = localStorage.getItem('chatSessionId');
+    if (sid) setGlobalSessionId(sid);
+    else setGlobalSessionId(null);
+    fetchSessions();
+    fetchServers();
+  }, [isLoggedIn, fetchSessions, fetchServers]);
 
-  // ── Create a brand-new chat session (Frontend only until first message) 
+  const handleChatModeChange = useCallback((newMode) => {
+    setChatMode(newMode);
+    if (newMode === 'TERMINAL') {
+      fetchServers();
+    }
+  }, [fetchServers]);
+
+  const [globalSessionId, setGlobalSessionId] = useState(
+    () => localStorage.getItem('chatSessionId')
+  );
+
   const handleNewChat = useCallback(() => {
     localStorage.removeItem('chatSessionId');
-    setCurrentSessionId(null);
-    setActiveTab('chat');
-    setIsSidebarOpen(false);
+    setGlobalSessionId(null);
+    setChatMode('GENERAL');
   }, []);
 
-  const handleSessionCreated = useCallback((newId) => {
-    setCurrentSessionId(newId);
+  const handleGlobalSessionCreated = useCallback((newId) => {
+    localStorage.setItem('chatSessionId', newId);
+    setGlobalSessionId(newId);
     fetchSessions();
   }, [fetchSessions]);
 
-  // ── Switch to an existing session ─────────────────────────────────────
   const handleSelectSession = useCallback((sessionId) => {
     localStorage.setItem('chatSessionId', sessionId);
-    setCurrentSessionId(sessionId);
-    setActiveTab('chat');
+    setGlobalSessionId(sessionId);
+    setChatMode('GENERAL');
     setIsSidebarOpen(false);
   }, []);
 
-  // ── Refresh sessions after AI generates a title (~4s delay) ───────────
+  const [dashboardTarget, setDashboardTarget] = useState({
+    serverId: null,
+    sessionId: null,
+  });
+
+  const handleDashboardSessionUpdate = useCallback(({ serverId, sessionId }) => {
+    setDashboardTarget({ serverId, sessionId });
+  }, []);
+
+  const handleSelectTerminalSession = useCallback((session) => {
+    const token = localStorage.getItem('token');
+    fetch(`/api/sessions/${session.sessionId}/context`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : null)
+      .then((context) => {
+        if (context?.serverId) {
+          setDashboardTarget({ serverId: context.serverId, sessionId: session.sessionId });
+          setChatMode('TERMINAL');
+          setIsSidebarOpen(false);
+        }
+      })
+      .catch(() => {});
+  }, [setIsSidebarOpen]);
+
   const handleChatDone = useCallback(() => {
     setTimeout(() => fetchSessions(), 4000);
   }, [fetchSessions]);
 
-  // ── Logout ────────────────────────────────────────────────────────────
   const handleLogout = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
@@ -120,27 +151,30 @@ function App() {
     localStorage.removeItem('chatSessionId');
     setIsLoggedIn(false);
     setAuthView('welcome');
+    setAllSessions([]);
+    setGlobalSessionId(null);
+    setDashboardTarget({ serverId: null, sessionId: null });
+    setServers([]);
   }, []);
 
-
-  // ── Delete a session ──────────────────────────────────────────────────
   const handleDeleteSession = useCallback(async (e, sessionIdToDelete) => {
     e.stopPropagation();
     const token = localStorage.getItem('token');
     try {
       await fetch(`/api/sessions/${sessionIdToDelete}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
       });
-      if (currentSessionId === sessionIdToDelete) {
+      if (globalSessionId === sessionIdToDelete) {
         handleNewChat();
       }
       fetchSessions();
     } catch (err) {
-      console.warn("Failed to delete session", err);
+      console.warn('Failed to delete session', err);
     }
-  }, [currentSessionId, handleNewChat, fetchSessions]);
+  }, [globalSessionId, handleNewChat, fetchSessions]);
 
+  const activeView = chatMode === 'TERMINAL' ? 'dashboard' : 'chat';
 
   return (
     <div className="flex h-screen w-full max-w-full overflow-x-hidden bg-[#0a0a0c] text-foreground relative font-sans">
@@ -154,7 +188,6 @@ function App() {
       {!isLoggedIn ? (
         authView === 'welcome' ? (
           <div className="relative z-10 w-full h-full overflow-y-auto custom-scrollbar">
-            {/* Simple header for landing page */}
             <div className="absolute top-0 left-0 right-0 z-50 flex justify-between items-center px-6 md:px-12 pt-6 pointer-events-auto">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-lg shadow-white/10">
@@ -162,7 +195,7 @@ function App() {
                 </div>
                 <span className="font-bold text-lg text-white tracking-wide">OpsPilot</span>
               </div>
-              <button 
+              <button
                 onClick={() => setAuthView('auth')}
                 className="px-6 py-2 rounded-full bg-white text-black font-semibold hover:bg-zinc-200 transition-colors shadow-lg shadow-white/10"
               >
@@ -172,9 +205,9 @@ function App() {
             <WelcomeScreen onLogin={() => setAuthView('auth')} />
           </div>
         ) : (
-          <AuthPage 
-            onLogin={() => setIsLoggedIn(true)} 
-            onBack={() => setAuthView('welcome')} 
+          <AuthPage
+            onLogin={() => setIsLoggedIn(true)}
+            onBack={() => setAuthView('welcome')}
           />
         )
       ) : (
@@ -187,63 +220,38 @@ function App() {
             />
           )}
 
-      {/* ── Sidebar ────────────────────────────────────────────────────── */}
-      <Sidebar
-        isOpen={isSidebarOpen}
-        setIsOpen={setIsSidebarOpen}
-        agentStatus={agentStatus}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onAddServer={() => setShowServerModal(true)}
-        sessions={sessions}
-        currentSessionId={currentSessionId}
-        onSelectSession={handleSelectSession}
-        onNewChat={handleNewChat}
-        onLogout={handleLogout}
-        onDeleteSession={handleDeleteSession}
-      />
+          {/* Sidebar */}
+          <Sidebar
+            isOpen={isSidebarOpen}
+            setIsOpen={setIsSidebarOpen}
+            agentStatus={agentStatus}
+            activeTab={activeView}
+            setActiveTab={() => {}}
+            chatMode={chatMode}
+            setChatMode={handleChatModeChange}
+            sessions={generalSessions}
+            currentSessionId={globalSessionId}
+            onSelectSession={handleSelectSession}
+            onNewChat={handleNewChat}
+            onLogout={handleLogout}
+            onDeleteSession={handleDeleteSession}
+            terminalServers={servers.filter((s) => s.status === 'SUCCESS')}
+            terminalSessions={terminalSessions}
+            onSelectTerminalSession={handleSelectTerminalSession}
+          />
 
-      {/* ── Main content ───────────────────────────────────────────────── */}
-      <main className="flex-1 flex flex-col w-full max-w-full overflow-x-hidden relative z-10">
-        <ChromaFlow
-          palette="silver"
-          speed={0.2}
-          density={23}
-          flow={1}
-          glow={0.05}
-          vignette={0.8}
-          grain={0.045}
-          mouseInfluence={0.1}
-          mouseFollow={true}
-          className="flex-1 w-full h-full"
-        >
-          <div className="flex-1 relative w-full h-full">
-          {/* Full Screen Chat Tab */}
-          <div
-            className={`absolute inset-0 transition-opacity duration-500 ${
-              activeTab === 'chat' ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'
-            }`}
-          >
-            {activeTab === 'chat' && (
-              <ChatArea 
-                sessionId={currentSessionId} 
-                onSessionCreated={handleSessionCreated} 
-                onChatDone={handleChatDone} 
-              />
-            )}
-          </div>
-
-          {/* Server Dashboard Tab */}
-          <div
-            className={`absolute inset-0 transition-opacity duration-500 ${
-              activeTab === 'dashboard' ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'
-            }`}
-          >
-            {activeTab === 'dashboard' && <ServerDashboard />}
-          </div>
-        </div>
-        </ChromaFlow>
-      </main>
+          {/* Main content — always renders ServerDashboard directly, no wrappers */}
+          <ServerDashboard
+            onSessionUpdate={handleDashboardSessionUpdate}
+            onServerListUpdate={fetchServers}
+            initialServerId={dashboardTarget.serverId}
+            initialSessionId={dashboardTarget.sessionId}
+            chatMode={chatMode}
+            globalSessionId={globalSessionId}
+            onGlobalSessionCreated={handleGlobalSessionCreated}
+            onChatDone={handleChatDone}
+            onSelectSession={handleSelectSession}
+          />
         </>
       )}
     </div>
