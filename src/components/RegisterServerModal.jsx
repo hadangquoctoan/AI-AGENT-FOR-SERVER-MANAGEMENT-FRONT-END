@@ -137,8 +137,8 @@ export default function RegisterServerModal({ onClose, onCompleteRegistration })
     'Deploy an agent to your VPS.';
 
   return (
-    <div onClick={handleClose} className="fixed inset-0 flex items-center justify-center bg-black/90 backdrop-blur-md px-4 font-sans" style={{ zIndex: 99999 }}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl bg-zinc-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/90 backdrop-blur-md px-4 font-sans" style={{ zIndex: 99999 }}>
+      <div className="w-full max-w-2xl bg-zinc-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
 
         {/* Ambient glow */}
         <div className="absolute -top-32 -left-32 w-64 h-64 bg-white/[0.06] rounded-full blur-[100px] pointer-events-none" />

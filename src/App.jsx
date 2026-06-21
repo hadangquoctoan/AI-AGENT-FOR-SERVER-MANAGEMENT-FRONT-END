@@ -5,6 +5,7 @@ import ServerDashboard from './components/ServerDashboard';
 import WelcomeScreen from './components/WelcomeScreen';
 import AuthPage from './components/AuthPage';
 import { ChromaFlow } from './components/lazy-ui/chroma-flow';
+import { GridBackground } from './components/lazy-ui/grid-background';
 
 function App() {
   const [activeTab, setActiveTab]       = useState('dashboard');
@@ -205,32 +206,32 @@ function App() {
 
       {/* ── Main content ───────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col w-full max-w-full overflow-x-hidden relative z-10">
-        <ChromaFlow
-          palette="silver"
-          speed={0.2}
-          density={23}
-          flow={1}
-          glow={0.05}
-          vignette={0.8}
-          grain={0.045}
-          mouseInfluence={0.1}
-          mouseFollow={true}
-          className="flex-1 w-full h-full"
-        >
-          <div className="flex-1 relative w-full h-full">
+        <div className="flex-1 relative w-full h-full">
           {/* Full Screen Chat Tab */}
           <div
             className={`absolute inset-0 transition-opacity duration-500 ${
               activeTab === 'chat' ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'
             }`}
           >
-            {activeTab === 'chat' && (
+            <GridBackground
+              variant="dots"
+              fade="edges"
+              color="rgba(255,255,255,0.15)"
+              size={24}
+              lineWidth={1}
+              dotSize={3}
+              dashLength={3}
+              dashGap={5}
+              crossSize={5}
+              fadeStrength={1}
+            />
+            <div className="relative z-10 w-full h-full">
               <ChatArea 
                 sessionId={currentSessionId} 
                 onSessionCreated={handleSessionCreated} 
                 onChatDone={handleChatDone} 
               />
-            )}
+            </div>
           </div>
 
           {/* Server Dashboard Tab */}
@@ -239,10 +240,24 @@ function App() {
               activeTab === 'dashboard' ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'
             }`}
           >
-            {activeTab === 'dashboard' && <ServerDashboard />}
+            {activeTab === 'dashboard' && (
+              <ChromaFlow
+                palette="silver"
+                speed={0.2}
+                density={23}
+                flow={1}
+                glow={0.05}
+                vignette={0.8}
+                grain={0.045}
+                mouseInfluence={0.1}
+                mouseFollow={true}
+                className="w-full h-full"
+              >
+                <ServerDashboard />
+              </ChromaFlow>
+            )}
           </div>
         </div>
-        </ChromaFlow>
       </main>
         </>
       )}
